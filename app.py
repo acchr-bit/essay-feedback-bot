@@ -85,34 +85,38 @@ def call_gemini(prompt):
 st.set_page_config(
     page_title="Writing Test", 
     layout="centered",
-    initial_sidebar_state="expanded" # Force it open
+    initial_sidebar_state="expanded" 
 )
 
+# --- CSS to Force Sidebar Visibility and Hide Icons ---
 st.markdown("""
     <style>
-    /* 1. Hide the entire top header bar (where Share/GitHub/Star live) */
-    header[data-testid="stHeader"] {
-        visibility: hidden;
-        height: 0px;
-    }
-
-    /* 2. Hide the Main Menu hamburger */
-    #MainMenu {visibility: hidden;}
-    
-    /* 3. Hide the footer */
-    footer {visibility: hidden;}
-    
-    /* 4. IMPORTANT: Since we hid the header, we must ensure the sidebar 
-       is still accessible. This CSS pushes the sidebar content down 
-       so it doesn't overlap with the top of the screen. */
-    [data-testid="stSidebar"] > div:first-child {
-        padding-top: 2rem;
-    }
-
-    /* 5. Hide any action buttons (Deploy, etc.) */
-    .stDeployButton {
+    /* 1. Hide the top-right icons and the header bar */
+    [data-testid="stHeader"], .stDeployButton, [data-testid="stToolbar"] {
         display: none !important;
     }
+
+    /* 2. FORCE the sidebar to be visible even without the button */
+    [data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        width: 300px !important;
+        position: fixed !important;
+        z-index: 1000000;
+    }
+
+    /* 3. Adjust the main content so it doesn't hide behind the forced sidebar */
+    [data-testid="stMain"] {
+        margin-left: 0px;
+    }
+
+    /* 4. Hide the sidebar collapse button (the little arrow) so students can't close it */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
+    }
+
+    /* 5. Clean up the footer */
+    footer {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
