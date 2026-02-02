@@ -28,25 +28,30 @@ with st.sidebar:
 
 # 4. API CALL
 def call_gemini(prompt):
-    # We are using the most specific stable name for 2026
-    # If gemini-1.5-flash fails, we try gemini-1.5-flash-latest
+    # In 2026, 'gemini-2.5-flash' is the standard workhorse model.
+    # 'gemini-2.0-flash' is the fallback for basic free/pay-as-you-go tiers.
     
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={API_KEY}"
     headers = {'Content-Type': 'application/json'}
     data = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    response = requests.post(url, headers=headers, json=data)
+    # TRY 1: Gemini 2.5 Flash (The current 2026 recommended model)
+    url_25 = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     
-    if response.status_code == 200:
-        return response.json()['candidates'][0]['content']['parts'][0]['text']
-    else:
-        # ULTIMATE FALLBACK: If the above fails, use the 'latest' alias which usually works in EU
-        fallback_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key={API_KEY}"
-        res_latest = requests.post(fallback_url, headers=headers, json=data)
-        if res_latest.status_code == 200:
-            return res_latest.json()['candidates'][0]['content']['parts'][0]['text']
+    try:
+        response = requests.post(url_25, headers=headers, json=data)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        
+        # TRY 2: Gemini 2.0 Flash (If 2.5 isn't active for your tier yet)
+        url_20 = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+        response = requests.post(url_20, headers=headers, json=data)
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
             
         raise Exception(f"Error {response.status_code}: {response.text}")
+        
+    except Exception as e:
+        raise Exception(f"AI Connection Failed: {e}")
 
 # 5. LOGIC
 st.info("Task: Write an email to Liam (80-100 words) about your trip plans.")
