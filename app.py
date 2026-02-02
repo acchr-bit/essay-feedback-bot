@@ -1,44 +1,96 @@
-# --- SUBMISSION LOGIC ---
+import streamlit as st
+import google.generativeai as genai
+import requests
 
+# 1. SETUP API KEYS FROM STREAMLIT SECRETS
+try:
+    API_KEY = st.secrets["GEMINI_API_KEY"]
+    SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
+    genai.configure(api_key=API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error("Secrets not found. Please check your Streamlit Advanced Settings.")
+    st.stop()
+
+# 2. INITIALIZE SESSION STATE (Prevents NameError)
+if 'submitted' not in st.session_state:
+    st.session_state.submitted = False
+
+# 3. TEACHER CONFIGURATION
+ASSIGNMENT_NAME = "Email to Liam (End of Year Trip)"
+TASK_INSTRUCTIONS = """
+Write an email to Liam (80-100 words), your exchange partner. 
+Tell him about your end of year trip plans: places to visit, 
+activities, and about your classmates, friends and family.
+"""
+
+# THE RUBRIC (Your specific point-deduction system)
+SYSTEM_PROMPT = f"""
+You are a strict but encouraging British English teacher grading at B2 CEFR level.
+TASK: {TASK_INSTRUCTIONS}
+
+RUBRIC RULES:
+1. Criterion 1 (Adequació): Start 4.0. Deduct for length (<80 words = total grade / 2), genre (-1.0), register (-0.5), structure (-1.0), missing info (-0.5 per item), connectors (-1.0 if <5 total or <3 different), punctuation (-0.5 to -1.5).
+2. Criterion 2 (Morfosintaxi): Start 4.0. Deduct 0.4 for: verb tense, 'to be', 'to have', subject-verb agreement. Deduct 0.3 for: spelling, prepositions. Deduct 0.1 for collocations. Deduct 0.5 for small 'i'. Deduct 0.5 if no complex sentences.
+3. Criterion 3 (Lèxic): Score only 0, 1, or 2.
+
+OUTPUT FORMAT:
+- Criterion 1: [Score] + Short comment.
+- Criterion 2: [Score] + List of mistakes (Explanations only, NO corrections).
+- Criterion 3: [Score] + Short comment.
+- FINAL MARK: [Total/10]
+- Encouraging closing sentence.
+Tone: Strict, straightforward, simple, encouraging.
+"""
+
+# 4. USER INTERFACE
+st.set_page_config(page_title="Writing Portal", layout="centered")
+st.title("📝 Student Writing Portal")
+
+# Sidebar for identification
+with st.sidebar:
+    st.header("Student Info")
+    group = st.selectbox("Select Group", ["3A", "3C", "4A", "4B", "4C"])
+    s1 = st.text_input("Student 1 Name & Surname")
+    s2 = st.text_input("Student 2 (Optional)")
+    s3 = st.text_input("Student 3 (Optional)")
+    s4 = st.text_input("Student 4 (Optional)")
+    student_list = ", ".join(filter(None, [s1, s2, s3, s4]))
+
+st.info(f"**Task:** {ASSIGNMENT_NAME}\n\n{TASK_INSTRUCTIONS}")
+
+# 5. SUBMISSION LOGIC
 if not st.session_state.submitted:
+    essay = st.text_area("Type your essay here...", height=350, key="draft1")
+    
     if st.button("Submit First Draft for Grade"):
         if not s1 or not essay:
-            st.error("Please provide your name and essay.")
+            st.error("Please provide at least one name and your essay.")
         else:
-            with st.spinner("Analyzing First Draft..."):
-                response = model.generate_content([SYSTEM_PROMPT, essay])
+            with st.spinner("Teacher AI is grading..."):
+                # Call Gemini AI
+                response = model.generate_content([SYSTEM_PROMPT, f"FIRST DRAFT SUBMISSION: {essay}"])
                 feedback_text = response.text
-                mark = feedback_text.split("FINAL MARK:")[1].split("\n")[0].strip() if "FINAL MARK:" in feedback_text else "N/A"
-
-                # Send First Draft
-                requests.post(SHEET_URL, json={
-                    "type": "FIRST_DRAFT",
-                    "group": group, "students": students, "assignment": ASSIGNMENT_NAME,
-                    "grade": mark, "feedback": feedback_text, "essay": essay
-                })
                 
-                st.subheader("Draft 1 Feedback")
-                st.markdown(feedback_text)
-                st.session_state.submitted = True
+                # Try to extract mark for the sheet
+                mark = "N/A"
+                if "FINAL MARK:" in feedback_text:
+                    mark = feedback_text.split("FINAL MARK:")[1].split("\n")[0].strip()
 
-else:
-    st.warning("Revision Mode: Improve your text below.")
-    revised_essay = st.text_area("Write your IMPROVED composition here:", value=essay, height=300)
-    
-    if st.button("Submit Final Revision"):
-        with st.spinner("Reviewing Improvements..."):
-            rev_prompt = f"{SYSTEM_PROMPT}\n\nSUBMISSION: FINAL REVISION. Compare with original. Feedback on improvements only. No grade."
-            response = model.generate_content([rev_prompt, revised_essay])
-            
-            # Update the SAME row in Google Sheets
-            requests.post(SHEET_URL, json={
-                "type": "REVISION",
-                "group": group, 
-                "students": students, 
-                "feedback": response.text, 
-                "essay": revised_essay 
-            })
-            
-            st.subheader("Final Feedback")
-            st.markdown(response.text)
-            st.balloons()
+                # Send to Google Sheets (Bridge handles the new row)
+                try:
+                    requests.post(SHEET_URL, json={
+                        "type": "FIRST_DRAFT",
+                        "group": group, 
+                        "students": student_list, 
+                        "assignment": ASSIGNMENT_NAME,
+                        "grade": mark, 
+                        "feedback": feedback_text, 
+                        "essay": essay
+                    })
+                    st.subheader("Your Grade & Feedback")
+                    st.markdown(feedback_text)
+                    st.session_state.submitted = True
+                    st.session_state.original_essay = essay
+                    st.rerun() # Refresh to show the revision area
+                except Exception as e:
