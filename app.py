@@ -65,14 +65,18 @@ with col1:
                     mark = fb.split("FINAL MARK:")[1].split("\n")[0].strip() if "FINAL MARK:" in fb else "N/A"
                     
                     requests.post(SHEET_URL, json={
-                        "type": "FIRST", "Group": group, "Students": student_list, "Task": task_name,
-                        "Mark": mark, "FB1": fb, "Draft1": essay
-                    })
+    "type": "FIRST",
+    "Group": group,
+    "Students": student_list,
+    "Task": task_name,
+    "Mark": mark_value,
+    "FB 1": fb,
+    "Draft1": essay
+})
                     st.session_state.submitted_first = True
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
-
 # DISPLAY AREA
 if st.session_state.fb1:
     st.markdown("---")
@@ -99,12 +103,12 @@ with col2:
                 st.session_state.fb2 = fb2
                 
                 requests.post(SHEET_URL, json={
-                    "type": "REVISION", 
-                    "Group": group, 
-                    "Students": student_list, 
-                    "FinalEssay": essay, 
-                    "FB2": fb2
-                })
+    "type": "REVISION",
+    "Group": group,
+    "Students": student_list,
+    "FinalEssay": essay,
+    "FB 2": fb2
+})
                 st.balloons()
                 st.rerun() # Refresh to show the green FB2 box
             except Exception as e:
