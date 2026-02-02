@@ -135,9 +135,10 @@ if col1.button("🔍 Get Feedback"):
 if st.session_state.fb1:
     st.markdown("---")
     st.info(st.session_state.fb1)
-    
-    if col2.button("🚀 Submit Final Revision"):
-            with st.spinner("Checking revision..."):
+
+if col2.button("🚀 Submit Final Revision"):
+        with st.spinner("Checking revision..."):
+            # Everything below this must be indented by 4 spaces
             rev_prompt = (
                 f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
                 f"--- NEW REVISED VERSION ---\n{essay}\n\n"
@@ -152,8 +153,11 @@ if st.session_state.fb1:
             st.session_state.fb2 = fb2
             
             requests.post(SHEET_URL, json={
-                "type": "REVISION", "Group": group, "Students": student_list,
-                "Final Essay": essay, "FB 2": fb2
+                "type": "REVISION", 
+                "Group": group, 
+                "Students": student_list,
+                "Final Essay": essay, 
+                "FB 2": fb2
             })
             st.balloons()
 
