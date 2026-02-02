@@ -8,9 +8,8 @@ try:
     SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
     genai.configure(api_key=API_KEY)
     
-    # We use 'gemini-1.5-flash' as the primary, but 'gemini-pro' as a backup
-    # If gemini-1.5-flash gives a 'NotFound', try 'gemini-2.0-flash' or 'gemini-pro'
-    model = genai.GenerativeModel('gemini-1.5-flash') 
+    # Using the latest stable model string to avoid 'NotFound' errors
+    model = genai.GenerativeModel('gemini-1.5-flash-latest') 
 except Exception as e:
     st.error(f"Setup Error: {e}")
     st.stop()
@@ -20,6 +19,8 @@ if 'submitted' not in st.session_state:
     st.session_state.submitted = False
 if 'original_essay' not in st.session_state:
     st.session_state.original_essay = ""
+if 'first_feedback' not in st.session_state:
+    st.session_state.first_feedback = ""
 
 # 3. TEACHER CONFIGURATION
 ASSIGNMENT_NAME = "Email to Liam (End of Year Trip)"
@@ -71,57 +72,32 @@ if not st.session_state.submitted:
             st.error("Please provide at least one name and your essay.")
         else:
             with st.spinner("Teacher AI is grading..."):
-                response = model.generate_content([SYSTEM_PROMPT, f"FIRST DRAFT SUBMISSION: {essay}"])
-                feedback_text = response.text
-                
-                mark = "N/A"
-                if "FINAL MARK:" in feedback_text:
-                    mark = feedback_text.split("FINAL MARK:")[1].split("\n")[0].strip()
-
                 try:
-                    requests.post(SHEET_URL, json={
-                        "type": "FIRST_DRAFT",
-                        "group": group, 
-                        "students": student_list, 
-                        "assignment": ASSIGNMENT_NAME,
-                        "grade": mark, 
-                        "feedback": feedback_text, 
-                        "essay": essay
-                    })
-                    st.session_state.original_essay = essay
-                    st.session_state.submitted = True
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error connecting to Google Sheets: {e}")
+                    # Generate AI response
+                    response = model.generate_content([SYSTEM_PROMPT, f"FIRST DRAFT: {essay}"])
+                    
+                    if response and response.text:
+                        feedback_text = response.text
+                        mark = "N/A"
+                        if "FINAL MARK:" in feedback_text:
+                            mark = feedback_text.split("FINAL MARK:")[1].split("\n")[0].strip()
 
-else:
-    # This part shows AFTER the first submission
-    st.success("First draft submitted. Scroll down to see feedback and revise.")
-    
-    # We put the feedback in an expander so it doesn't take up too much space
-    with st.expander("View First Draft Feedback", expanded=True):
-        # We need to re-generate or store the feedback. 
-        # For simplicity in this free version, we ask the AI to re-summarize or show the status.
-        st.info("Please use the feedback provided in the previous step to improve your text.")
-
-    revised_essay = st.text_area("Write your IMPROVED composition here:", value=st.session_state.original_essay, height=350, key="draft2")
-    
-    if st.button("Submit Final Revision"):
-        with st.spinner("Reviewing improvements..."):
-            rev_prompt = f"{SYSTEM_PROMPT}\n\nSUBMISSION: FINAL REVISION. Feedback on improvements only. No grade."
-            response = model.generate_content([rev_prompt, revised_essay])
-            final_feedback = response.text
-            
-            try:
-                requests.post(SHEET_URL, json={
-                    "type": "REVISION",
-                    "group": group, 
-                    "students": student_list, 
-                    "feedback": final_feedback, 
-                    "essay": revised_essay 
-                })
-                st.subheader("Final Feedback on Revision")
-                st.markdown(final_feedback)
-                st.balloons()
-            except Exception as e:
-                st.error(f"Error updating Sheet: {e}")
+                        # Send to Google Sheets
+                        requests.post(SHEET_URL, json={
+                            "type": "FIRST_DRAFT",
+                            "group": group, 
+                            "students": student_list, 
+                            "assignment": ASSIGNMENT_NAME,
+                            "grade": mark, 
+                            "feedback": feedback_text, 
+                            "essay": essay
+                        })
+                        
+                        st.session_state.first_feedback = feedback_text
+                        st.session_state.original_essay = essay
+                        st.session_state.submitted = True
+                        st.rerun()
+                    else:
+                        st.error("AI returned an empty response. Please try again.")
+                except Exception as ai_err:
+                    st.error(f"AI/
