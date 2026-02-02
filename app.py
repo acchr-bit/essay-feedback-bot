@@ -85,10 +85,17 @@ def call_gemini(prompt):
 st.set_page_config(page_title="Writing Test", layout="centered")
 hide_streamlit_style = """
             <style>
-            #MainMenu {visibility: hidden;}
-            header {visibility: hidden;}
-            footer {visibility: hidden;}
+            /* Hide the GitHub, Share, and Star icons on the right */
+            .stAppToolbar {right: 0.5rem; visibility: hidden;}
+            
+            /* Specifically hide the 'Deploy' button */
             .stAppDeployButton {display:none;}
+            
+            /* Ensure the header bar itself doesn't block clicks, but keep it for the sidebar button */
+            header {background-color: rgba(0,0,0,0); height: 3rem;}
+            
+            /* Hide the footer */
+            footer {visibility: hidden;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
