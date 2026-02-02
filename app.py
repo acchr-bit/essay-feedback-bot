@@ -88,35 +88,39 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- CSS to Force Sidebar Visibility and Hide Icons ---
+# --- SURGICAL CSS: Hides only the buttons, keeps the sidebar alive ---
 st.markdown("""
     <style>
-    /* 1. Hide the top-right icons and the header bar */
-    [data-testid="stHeader"], .stDeployButton, [data-testid="stToolbar"] {
+    /* 1. Hide the specific container for the GitHub/Share/Star buttons */
+    /* We target the div that sits on the right side of the header */
+    [data-testid="stHeaderActionElements"] {
         display: none !important;
     }
 
-    /* 2. FORCE the sidebar to be visible even without the button */
-    [data-testid="stSidebar"] {
-        display: block !important;
-        visibility: visible !important;
-        width: 300px !important;
-        position: fixed !important;
-        z-index: 1000000;
-    }
-
-    /* 3. Adjust the main content so it doesn't hide behind the forced sidebar */
-    [data-testid="stMain"] {
-        margin-left: 0px;
-    }
-
-    /* 4. Hide the sidebar collapse button (the little arrow) so students can't close it */
-    [data-testid="stSidebarCollapseButton"] {
+    /* 2. Hide the 'Deploy' button */
+    .stDeployButton {
         display: none !important;
     }
 
-    /* 5. Clean up the footer */
-    footer {visibility: hidden;}
+    /* 3. Hide the main hamburger menu */
+    #MainMenu {
+        display: none !important;
+    }
+
+    /* 4. Hide the footer */
+    footer {
+        visibility: hidden;
+    }
+
+    /* 5. Hide the top decoration line */
+    [data-testid="stDecoration"] {
+        display: none !important;
+    }
+
+    /* 6. Optional: Hide the sidebar collapse arrow so it stays open */
+    button[kind="headerNoPadding"] {
+        display: none !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
