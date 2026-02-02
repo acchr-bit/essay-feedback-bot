@@ -73,7 +73,7 @@ st.title("📝 Writing Assessment")
 
 with st.sidebar:
     st.header("Student Info")
-    group = st.selectbox("Group", ["3A", "3C", "4A", "4B", "4C"])
+    group = st.selectbox("Group", [" ","3A", "3C", "4A", "4B", "4C"])
     s1 = st.text_input("Student 1 Name and Surname")
     s2 = st.text_input("Student 2 Name and Surname (Optional)")
     s3 = st.text_input("Student 3 Name and Surname (Optional)")
