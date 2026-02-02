@@ -135,19 +135,18 @@ if col1.button("🔍 Get Feedback"):
 if st.session_state.fb1:
     st.markdown("---")
     st.info(st.session_state.fb1)
-
 if col2.button("🚀 Submit Final Revision"):
         with st.spinner("Checking revision..."):
-            # Everything below this must be indented by 4 spaces
             rev_prompt = (
                 f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
                 f"--- NEW REVISED VERSION ---\n{essay}\n\n"
-                f"CRITICAL INSTRUCTIONS:\n"
-                f"1. Compare the new version to the original feedback.\n"
-                f"2. Verify if the student actually fixed the errors. If they fixed the grammar but introduced a NEW spelling mistake (e.g., 'travell' instead of 'travel'), you MUST point it out.\n"
-                f"3. Do not just say 'Corrected'. Be precise. If a new error was introduced during the fix, mention it clearly.\n"
-                f"4. Praise genuine improvements, but remain a strict examiner.\n"
-                f"5. DO NOT give a new grade. NEVER mention the student's name."
+                f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
+                f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
+                f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
+                f"3. If a student 'half-fixes' something (e.g., they fix the grammar but introduce a new spelling mistake like 'travell'), you MUST identify it as a failed fix.\n"
+                f"4. Be very specific. Use phrasing like: 'You attempted to fix X, but you introduced a new spelling error: Y'.\n"
+                f"5. Do NOT say 'Corrected' unless it is 100% perfect.\n"
+                f"6. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
             )
             fb2 = call_gemini(rev_prompt)
             st.session_state.fb2 = fb2
