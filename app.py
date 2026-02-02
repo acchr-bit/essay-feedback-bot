@@ -82,23 +82,31 @@ def call_gemini(prompt):
     return "The teacher is busy. Try again in 10 seconds."
 
 # 5. UI
-st.set_page_config(page_title="Writing Test", layout="centered")
+st.set_page_config(
+    page_title="Writing Test", 
+    layout="centered",
+    initial_sidebar_state="expanded" # This ensures the sidebar is open on load
+)
 hide_streamlit_style = """
             <style>
-            /* Hide the GitHub, Share, and Star icons on the right */
-            .stAppToolbar {right: 0.5rem; visibility: hidden;}
+            /* 1. Hide the right-side toolbar (GitHub, Share, Star) */
+            [data-testid="stToolbar"] {visibility: hidden;}
             
-            /* Specifically hide the 'Deploy' button */
+            /* 2. Hide the 'Deploy' button specifically */
             .stAppDeployButton {display:none;}
             
-            /* Ensure the header bar itself doesn't block clicks, but keep it for the sidebar button */
-            header {background-color: rgba(0,0,0,0); height: 3rem;}
+            /* 3. Hide the decoration line at the top */
+            [data-testid="stDecoration"] {display:none;}
             
-            /* Hide the footer */
+            /* 4. Hide the footer */
             footer {visibility: hidden;}
+
+            /* 5. Keep the sidebar button area visible but clean */
+            header {visibility: visible !important;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 st.title("📝 Writing Test")
 
 with st.sidebar:
