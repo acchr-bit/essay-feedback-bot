@@ -82,48 +82,7 @@ def call_gemini(prompt):
     return "The teacher is busy. Try again in 10 seconds."
 
 # 5. UI
-st.set_page_config(
-    page_title="Writing Test", 
-    layout="centered",
-    initial_sidebar_state="expanded" 
-)
-
-# --- SURGICAL CSS: Hides only the buttons, keeps the sidebar alive ---
-st.markdown("""
-    <style>
-    /* 1. Hide the specific container for the GitHub/Share/Star buttons */
-    /* We target the div that sits on the right side of the header */
-    [data-testid="stHeaderActionElements"] {
-        display: none !important;
-    }
-
-    /* 2. Hide the 'Deploy' button */
-    .stDeployButton {
-        display: none !important;
-    }
-
-    /* 3. Hide the main hamburger menu */
-    #MainMenu {
-        display: none !important;
-    }
-
-    /* 4. Hide the footer */
-    footer {
-        visibility: hidden;
-    }
-
-    /* 5. Hide the top decoration line */
-    [data-testid="stDecoration"] {
-        display: none !important;
-    }
-
-    /* 6. Optional: Hide the sidebar collapse arrow so it stays open */
-    button[kind="headerNoPadding"] {
-        display: none !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
+st.set_page_config(page_title="Writing Test", layout="centered")
 st.title("📝 Writing Test")
 
 with st.sidebar:
