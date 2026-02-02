@@ -31,8 +31,16 @@ st.title("📝 Writing & Revision Portal")
 with st.sidebar:
     st.header("Student Info")
     group = st.selectbox("Group", ["3A", "3C", "4A", "4B", "4C"])
-    s1 = st.text_input("Full Student Names")
-    student_list = s1
+    
+    # Restoring the 4 input fields
+    s1 = st.text_input("Student 1 Name and Surname")
+    s2 = st.text_input("Student 2 Name and Surname (Optional)")
+    s3 = st.text_input("Student 3 Name and Surname (Optional)")
+    s4 = st.text_input("Student 4 Name and Surname (Optional)")
+    
+    # Logic to combine them into one string for the spreadsheet
+    names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
+    student_list = ", ".join(names)
 
 task_name = "Email to Liam (Trip Plans)"
 st.info(f"**Task:** {task_name}")
