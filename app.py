@@ -7,6 +7,16 @@ import time
 API_KEY = st.secrets["GEMINI_API_KEY"]
 SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
 
+# --- CHANGE THESE EVERY TIME YOU START A NEW COMPOSITION TASK ---
+TASK_TITLE = "End of Year Trip Email"
+REQUIRED_CONTENT_POINTS = [
+    "Plans for the trip",
+    "Places you are going to visit",
+    "Activities you are going to do",
+    "Information about classmates, friends, and family"
+]
+# ----------------------------------------------------------------
+
 # 2. THE STERN TEACHER PROMPT
 RUBRIC_INSTRUCTIONS = """
 You are a British English Examiner. You must follow these 4 RED LINES:
@@ -16,8 +26,12 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 4. ONLY comment on missing paragraphs if the text is literally one single block of text.
 
 ### THE GRADING RULES (Internal use only):
-- CRITERION 1 (0–4 pts): Start 4,0. Deduct: Genre (-1), Register (-0,5), missing info (-0,5), Connectors (fewer than 5 total or fewer than 3 different = -1). Punctuation: 1-2 mistakes (-0,3), 3-4 (-0,6), 5+ (-1).
-- CRITERION 2 (0–4 pts): Start 4,0. Deduct: Tense (-0,3), 'to be/have' (-0,4), Subject-verb agreement (-0,4), Spelling (-0,2), Prepositions (-0,2), Collocations (-0,1), small 'i' (-0,5).
+- CRITERION 1 (0–4 pts): Start 4,0. 
+  - Deduct: Genre (-1), Register (-0,5), Paragraphs (-0,5).
+  - Content Coverage: I will provide a list of REQUIRED CONTENT POINTS. Deduct -0,5 for EACH point from that list that is missing or incomplete.
+  - Connectors: Deduct -1 if fewer than 5 total connectors or fewer than 3 DIFFERENT connectors are used. 
+  - Punctuation: 1-2 mistakes (-0,4), 3-4 (-0,6), 5+ (-1).
+- CRITERION 2 (0–4 pts): Start 4,0. Deduct: Tense (-0,3 each), 'to be/have' (-0,5 each), Subject-verb agreement (-0,5 each), Spelling (-0,2 each), Prepositions (-0,2 each), Collocations (-0,1 each), small 'i' (-0,5 each).
 - CRITERION 3 (0–2 pts): 2 (Rich), 1 (Limited), 0 (Poor).
 - WORD COUNT PENALTY: If the text is under 80 words, calculate the total (C1+C2+C3) and divide by 2.
 
@@ -26,6 +40,7 @@ Start with 'Overall Impression'. Then use these exact headers:
 
 'Adequació, coherència i cohesió (Score: X/4)'
 - Discuss organization, genre, register, and punctuation.
+- For content, specifically mention if any of the REQUIRED CONTENT POINTS were missing.
 - For punctuation errors, quote the phrase and explain the rule without correcting it.
 - Discuss connectors (quantity and variety).
 
@@ -34,7 +49,7 @@ Start with 'Overall Impression'. Then use these exact headers:
 - For spelling, say: "Check the capitalization/spelling of the word [wrong word]". DO NOT type the corrected word.
 
 'Lèxic (Score: X/2)'
-- Evaluate if the vocabulary is rich, suitable, or poor.
+- Indicate if the vocabulary is "rich", "suitable but not rich" or "poor".
 
 'Recommendations'
 - Give 2 bullet points for improvement.
@@ -81,7 +96,7 @@ with st.sidebar:
     student_list = ", ".join(names)
 
 task_desc = "This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family."
-essay = st.text_area("This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family.", value=st.session_state.essay_content, height=400)
+essay = st.text_area(task_desc, value=st.session_state.essay_content, height=400)
 st.session_state.essay_content = essay
 
 word_count = len(essay.split())
@@ -94,8 +109,15 @@ if col1.button("🔍 Get Feedback"):
         st.error("Enter your name and essay.")
     else:
         with st.spinner("Teacher is marking..."):
-            # Task name is repeated in prompt for context
-            full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nTASK: {task_desc}\n\nESSAY:\n{essay}"
+            # Format the dynamic content points for the AI
+            formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
+            
+            full_prompt = (
+                f"{RUBRIC_INSTRUCTIONS}\n\n"
+                f"REQUIRED CONTENT POINTS FOR THIS TASK:\n{formatted_points}\n\n"
+                f"TASK CONTEXT:\n{task_desc}\n\n"
+                f"STUDENT ESSAY:\n{essay}"
+            )
             fb = call_gemini(full_prompt)
             
             mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
@@ -105,7 +127,7 @@ if col1.button("🔍 Get Feedback"):
             
             requests.post(SHEET_URL, json={
                 "type": "FIRST", "Group": group, "Students": student_list, 
-                "Task": "Trip Email", "Mark": mark_value, "FB 1": fb, 
+                "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
                 "Draft 1": essay, "Word Count": word_count
             })
             st.rerun()
