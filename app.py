@@ -83,6 +83,17 @@ def call_gemini(prompt):
 
 # 5. UI
 st.set_page_config(page_title="Writing Test", layout="centered")
+
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            header {visibility: hidden;}
+            footer {visibility: hidden;}
+            .stAppDeployButton {display:none;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 st.title("📝 Writing Test")
 
 with st.sidebar:
