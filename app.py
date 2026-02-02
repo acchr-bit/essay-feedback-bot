@@ -7,9 +7,12 @@ try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # We use 'gemini-1.5-flash' as the primary, but 'gemini-pro' as a backup
+    # If gemini-1.5-flash gives a 'NotFound', try 'gemini-2.0-flash' or 'gemini-pro'
+    model = genai.GenerativeModel('gemini-1.5-flash') 
 except Exception as e:
-    st.error("Secrets not found. Please check your Streamlit Advanced Settings.")
+    st.error(f"Setup Error: {e}")
     st.stop()
 
 # 2. INITIALIZE SESSION STATE
