@@ -1,15 +1,20 @@
 import streamlit as st
 import google.generativeai as genai
 import requests
+import os
 
-# 1. SETUP WITH COMPATIBILITY FIX
+# 1. SETUP WITH STABLE API VERSION
 try:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
     
-    # Force the use of gemini-pro for maximum compatibility
+    # This environment variable forces the library to use the stable V1 API
+    os.environ["GOOGLE_API_USE_V1"] = "true"
+    
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-pro') 
+    
+    # In 2026, the most stable 'all-access' model is simply 'gemini-1.5-flash'
+    model = genai.GenerativeModel('gemini-1.5-flash') 
 except Exception as e:
     st.error(f"Setup Error: {e}")
     st.stop()
@@ -26,12 +31,9 @@ if 'first_feedback' not in st.session_state:
 ASSIGNMENT_NAME = "Email to Liam (End of Year Trip)"
 TASK_INSTRUCTIONS = """Write an email to Liam (80-100 words). Tell him about your end of year trip plans: places to visit, activities, classmates, friends and family."""
 
-SYSTEM_PROMPT = f"""You are a strict but encouraging British English teacher.
-TASK: {TASK_INSTRUCTIONS}
-Provide feedback on Adequacy, Morphosyntax, and Lexis. 
-Include 'FINAL MARK: X/10' at the end."""
+SYSTEM_PROMPT = f"""You are a British English teacher. Task: {TASK_INSTRUCTIONS}. Provide feedback and include 'FINAL MARK: X/10'."""
 
-# 4. USER INTERFACE (With 4 names)
+# 4. USER INTERFACE
 st.set_page_config(page_title="Writing Portal", layout="centered")
 st.title("📝 Student Writing Portal")
 
@@ -56,9 +58,8 @@ if not st.session_state.submitted:
         else:
             with st.spinner("AI Teacher is marking..."):
                 try:
-                    # Combined the prompt and essay into one string for simpler API handling
-                    full_query = f"{SYSTEM_PROMPT}\n\nSTUDENT ESSAY:\n{essay}"
-                    response = model.generate_content(full_query)
+                    # Explicitly using generate_content on the stable model
+                    response = model.generate_content(f"{SYSTEM_PROMPT}\n\nESSAY:\n{essay}")
                     
                     if response.text:
                         fb = response.text
@@ -74,8 +75,7 @@ if not st.session_state.submitted:
                         st.session_state.submitted = True
                         st.rerun()
                 except Exception as e:
-                    st.error(f"API Error: {e}. Try refreshing the page.")
-
+                    st.error(f"API Error: {e}")
 else:
     st.success("First draft submitted!")
     with st.expander("View Feedback", expanded=True):
@@ -86,9 +86,7 @@ else:
     if st.button("Submit Final Revision"):
         with st.spinner("Reviewing..."):
             try:
-                rev_query = f"Compare this revision to the original and comment on improvements. No mark.\n\nREVISION:\n{revised}"
-                res = model.generate_content(rev_query)
-                
+                res = model.generate_content(f"Feedback on revision:\n{revised}")
                 requests.post(SHEET_URL, json={
                     "type": "REVISION", "group": group, "students": student_list,
                     "feedback": res.text, "essay": revised
