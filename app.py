@@ -8,7 +8,7 @@ try:
     SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
     genai.configure(api_key=API_KEY)
     
-    # Using the latest stable model string to avoid 'NotFound' errors
+    # Using the latest stable model string
     model = genai.GenerativeModel('gemini-1.5-flash-latest') 
 except Exception as e:
     st.error(f"Setup Error: {e}")
@@ -100,4 +100,39 @@ if not st.session_state.submitted:
                     else:
                         st.error("AI returned an empty response. Please try again.")
                 except Exception as ai_err:
-                    st.error(f"AI/
+                    st.error(f"Error: {ai_err}")
+
+else:
+    # 6. REVISION MODE
+    st.success("First draft submitted! See your feedback below and improve your work.")
+    
+    with st.expander("View Your First Draft Feedback", expanded=True):
+        st.markdown(st.session_state.first_feedback)
+
+    revised_essay = st.text_area("Write your IMPROVED composition here:", value=st.session_state.original_essay, height=350, key="draft2")
+    
+    if st.button("Submit Final Revision"):
+        with st.spinner("Reviewing improvements..."):
+            try:
+                rev_prompt = f"{SYSTEM_PROMPT}\n\nSUBMISSION: FINAL REVISION. Compare with the original. Feedback on improvements only. No grade."
+                response = model.generate_content([rev_prompt, revised_essay])
+                
+                if response and response.text:
+                    final_feedback = response.text
+                    
+                    # Update Google Sheets
+                    requests.post(SHEET_URL, json={
+                        "type": "REVISION",
+                        "group": group, 
+                        "students": student_list, 
+                        "feedback": final_feedback, 
+                        "essay": revised_essay 
+                    })
+                    
+                    st.subheader("Final Feedback on Revision")
+                    st.markdown(final_feedback)
+                    st.balloons()
+                else:
+                    st.error("AI returned an empty response. Please try again.")
+            except Exception as e:
+                st.error(f"Error: {e}")
