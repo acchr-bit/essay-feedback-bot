@@ -68,16 +68,16 @@ def call_gemini(prompt):
     return "The teacher is busy. Try again in 10 seconds."
 
 # 5. UI
-st.set_page_config(page_title="Writing Portal", layout="centered")
-st.title("📝 Writing Assessment")
+st.set_page_config(page_title="Writing Test", layout="centered")
+st.title("📝 Writing Test")
 
 with st.sidebar:
     st.header("Student Info")
     group = st.selectbox("Group", [" ","3A", "3C", "4A", "4B", "4C"])
-    s1 = st.text_input("Student 1 Name and Surname")
-    s2 = st.text_input("Student 2 Name and Surname (Optional)")
-    s3 = st.text_input("Student 3 Name and Surname (Optional)")
-    s4 = st.text_input("Student 4 Name and Surname (Optional)")
+    s1 = st.text_input("Student 1 - Name and Surname")
+    s2 = st.text_input("Student 2 - Name and Surname")
+    s3 = st.text_input("Student 3 - Name and Surname")
+    s4 = st.text_input("Student 4 - Name and Surname")
     names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
     student_list = ", ".join(names)
 
