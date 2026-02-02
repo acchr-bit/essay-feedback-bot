@@ -24,17 +24,20 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 ### FEEDBACK STRUCTURE:
 Start with 'Overall Impression'. Then use these exact headers:
 
-'Morfosintaxi i ortografia'
-- Discuss organization and punctuation.
-- If a comma or semi-colon is wrong, quote the phrase and explain the rule (e.g., "You need a stronger break between these two independent clauses") but DO NOT show the corrected punctuation.
+'Adequació, coherència i cohesió'
+- Discuss organization of ideas and paragraphs.
+- Discuss Genre and resgister.
+- Discuss punctuation.
+- Discuss connectors.
+- If a punctuation mark is wrong, quote the phrase and explain the rule (e.g., "You need a stronger break between these two independent clauses") but DO NOT show the corrected punctuation.
 
 'Grammar & Spelling'
 - Quote the error.
 - Explain the grammar rule. Example: "In the phrase 'we was', the verb does not match the plural subject." 
-- For spelling, say: "Check the capitalization of the holiday mentioned" or "There is a spelling slip in the third line." DO NOT type the corrected word.
+- For spelling, say: "Check the capitalization of the holiday mentioned" or "There is a spelling mistake in the word" and add the wrong word. DO NOT type the corrected word.
 
 'Lèxic'
-- Quote basic words. Suggest the student uses more descriptive or sophisticated synonyms suited for a high-level exam.
+- Quote basic words. Suggest the student uses more descriptive or sophisticated synonyms suited for a high-level exam, but suitable for the required register.
 
 'Recommendations'
 - Give 3 bullet points for improvement.
@@ -71,15 +74,15 @@ st.title("📝 Writing Assessment")
 with st.sidebar:
     st.header("Student Info")
     group = st.selectbox("Group", ["3A", "3C", "4A", "4B", "4C"])
-    s1 = st.text_input("Student 1")
-    s2 = st.text_input("Student 2")
-    s3 = st.text_input("Student 3")
-    s4 = st.text_input("Student 4")
+    s1 = st.text_input("Student 1 Name and Surname")
+    s2 = st.text_input("Student 2 Name and Surname (Optional)")
+    s3 = st.text_input("Student 3 Name and Surname (Optional)")
+    s4 = st.text_input("Student 4 Name and Surname (Optional)")
     names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
     student_list = ", ".join(names)
 
-task_desc = "Write an email to Liam about your end-of-year trip plans, activities, classmates, and family."
-essay = st.text_area("Your Composition:", value=st.session_state.essay_content, height=400)
+task_desc = "This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family."
+essay = st.text_area("This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family.", value=st.session_state.essay_content, height=400)
 st.session_state.essay_content = essay
 
 word_count = len(essay.split())
