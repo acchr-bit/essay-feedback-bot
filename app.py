@@ -191,7 +191,7 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
             margin-bottom: 20px;
         ">
             <h3 style="margin-top: 0; color: #1a4a7a; border-bottom: 2px solid #b3d7ff; padding-bottom: 10px;">
-                🔍 Draft 1 Feedback
+                🔍 Read the following feedback improve your composition
             </h3>
             <div style="margin-top: 15px;">{fb1_text}</div>
         </div>
