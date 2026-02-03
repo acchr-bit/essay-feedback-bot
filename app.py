@@ -204,7 +204,18 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
                 else:
                     st.error(fb2)
 
-# --- 4. FINAL FEEDBACK ---
+# --- 4. FINAL FEEDBACK (Styled with a Green Background) ---
 if st.session_state.fb2:
-    st.success("### ✅ Final Revision Feedback")
-    st.write(st.session_state.fb2)
+    st.markdown(f"""
+        <div style="
+            background-color: #d4edda; 
+            color: #155724; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border: 2px solid #c3e6cb;
+            margin-top: 20px;
+        ">
+            <h3 style="margin-top: 0; color: #155724;">✅ Final Revision Feedback</h3>
+            {st.session_state.fb2}
+        </div>
+    """, unsafe_allow_html=True)
