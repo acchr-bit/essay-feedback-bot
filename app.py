@@ -139,29 +139,16 @@ st.caption(f"Word count: {word_count}")
 
 col1, col2 = st.columns(2)
 
-# --- 1. REVISION RESULTS (Now at the top of the feedback area) ---
-if st.session_state.fb2:
-    st.success("### ✅ Final Revision Feedback")
-    st.write(st.session_state.fb2)
-    st.markdown("---")
-
-# --- 2. ORIGINAL FEEDBACK (Moves below the revision if it exists) ---
-if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
-    header_text = "### 📜 Previous Feedback (Draft 1)" if st.session_state.fb2 else "### 🔍 Original Feedback"
-    st.markdown(header_text)
-    st.info(st.session_state.fb1)
-
-# --- 3. ACTION BUTTONS ---
 col1, col2 = st.columns(2)
 
-# --- GET FEEDBACK BUTTON ---
-# Only show if they haven't received valid feedback yet
+# --- 1. GET FEEDBACK BUTTON ---
+# Only show this button if there is no feedback yet or the teacher was busy
 if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
     if col1.button("🔍 Get Feedback", use_container_width=True):
         if not s1 or not essay:
             st.error("Enter your name and essay.")
         else:
-            with st.spinner("Teacher is marking your first draft..."):
+            with st.spinner("Teacher is marking..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
                 full_prompt = (
                     f"{RUBRIC_INSTRUCTIONS}\n\n"
@@ -184,32 +171,41 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                 else:
                     st.error(fb)
 
-# --- SUBMIT FINAL REVISION BUTTON ---
-# Only show if they have FB1 but haven't finished FB2 yet
-if st.session_state.fb1 and not st.session_state.fb2:
-    if col2.button("🚀 Submit Final Revision", use_container_width=True):
-        # The spinner now appears directly under this button
-        with st.spinner("✨ Teacher is reviewing your changes... please wait."):
-            rev_prompt = (
-                f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
-                f"--- NEW REVISED VERSION ---\n{essay}\n\n"
-                f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
-                f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
-                f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
-                f"3. If a student 'half-fixes' something, identify it as a failed fix.\n"
-                f"4. Be very specific.\n"
-                f"5. Do NOT say 'Corrected' unless perfect.\n"
-                f"6. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
-            )
-            fb2 = call_gemini(rev_prompt)
-            st.session_state.fb2 = fb2
-            
-            requests.post(SHEET_URL, json={
-                "type": "REVISION", 
-                "Group": group, 
-                "Students": student_list,
-                "Final Essay": essay, 
-                "FB 2": fb2
-            })
-            st.balloons()
-            st.rerun() # Refresh to move the result to the top
+# --- 2. DISPLAY FIRST FEEDBACK ---
+if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
+    st.markdown("---")
+    st.info(st.session_state.fb1)
+
+    # --- 3. SUBMIT REVISION BUTTON (Appears right after the first feedback) ---
+    # Only show the button if they haven't submitted the final revision yet
+    if not st.session_state.fb2:
+        if col2.button("🚀 Submit Final Revision", use_container_width=True):
+            # The spinner is placed right here so it stays under the student's cursor
+            with st.spinner("✨ Teacher is reviewing your changes... please wait."):
+                rev_prompt = (
+                    f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                    f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                    f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
+                    f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
+                    f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
+                    f"3. If a student 'half-fixes' something, identify it as a failed fix.\n"
+                    f"4. Be very specific.\n"
+                    f"5. Do NOT say 'Corrected' unless perfect.\n"
+                    f"6. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
+                )
+                fb2 = call_gemini(rev_prompt)
+                st.session_state.fb2 = fb2
+                
+                requests.post(SHEET_URL, json={
+                    "type": "REVISION", 
+                    "Group": group, 
+                    "Students": student_list,
+                    "Final Essay": essay, 
+                    "FB 2": fb2
+                })
+                st.balloons()
+                st.rerun()
+
+# --- 4. DISPLAY FINAL FEEDBACK (Appears last at the bottom) ---
+if st.session_state.fb2:
+    st.success(st.session_state.fb2)
