@@ -16,6 +16,7 @@ REQUIRED_CONTENT_POINTS = [
     "Information about classmates, friends, and family"
 ]
 # ----------------------------------------------------------------
+
 # 2. THE STERN TEACHER PROMPT
 RUBRIC_INSTRUCTIONS = """
 You are a British English Examiner. You must follow these 4 RED LINES:
@@ -81,23 +82,21 @@ def call_gemini(prompt):
             continue
     return "The teacher is busy. Try again in 10 seconds."
 
-# 5. UI
+# 5. UI CONFIG
 st.set_page_config(
     page_title="Writing Test", 
     layout="centered",
-    initial_sidebar_state="expanded" 
+    initial_sidebar_state="expanded"
 )
 
-# --- THE FIX: ADDED JAVASCRIPT SHIELD TO HIDE FOOTER LINKS ---
+# --- JAVASCRIPT SHIELD: Hides Profile and Streamlit Cloud Links ---
 st.components.v1.html("""
     <script>
     const hideBadges = () => {
         const parentDoc = window.parent.document;
-        // Select any element that looks like the Streamlit Cloud footer badge
         const badges = parentDoc.querySelectorAll('div[class*="viewerBadge"], [data-testid="stStatusWidget"]');
         badges.forEach(badge => { badge.style.display = 'none'; });
         
-        // Specifically target links pointing to your profile or streamlit cloud
         const links = parentDoc.querySelectorAll('a[href*="streamlit.io"], a[href*="acchr-bit"]');
         links.forEach(link => { link.style.display = 'none'; });
     };
@@ -105,30 +104,21 @@ st.components.v1.html("""
     </script>
     """, height=0)
 
-# --- CSS TO HIDE ICONS AND LOCK SIDEBAR OPEN ---
+# --- CSS: Hides Icons, Footer, and Locks Sidebar ---
 st.markdown("""
     <style>
-    /* 1. Hide the right-side icons (Share, GitHub, etc.) */
     [data-testid="stHeaderActionElements"], .stDeployButton, [data-testid="stToolbar"] {
         display: none !important;
     }
-
-    /* 2. Hide the 'Close' button (the arrow) on the sidebar so it can't be hidden */
     [data-testid="stSidebarCollapseButton"] {
         display: none !important;
     }
-
-    /* 3. Hide the main hamburger menu (the three lines) */
     #MainMenu {
         visibility: hidden;
     }
-
-    /* 4. Hide the top decoration line and the footer */
     [data-testid="stDecoration"], footer {
         display: none !important;
     }
-
-    /* 5. Clean up the header background so it's invisible but exists */
     header {
         background-color: rgba(0,0,0,0) !important;
     }
@@ -137,6 +127,7 @@ st.markdown("""
 
 st.title("📝 Writing Test")
 
+# 6. SIDEBAR
 with st.sidebar:
     st.header("Student Info")
     group = st.selectbox("Group", [" ","3A", "3C", "4A", "4B", "4C"])
@@ -147,6 +138,7 @@ with st.sidebar:
     names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
     student_list = ", ".join(names)
 
+# 7. MAIN AREA
 task_desc = "This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family."
 essay = st.text_area(task_desc, value=st.session_state.essay_content, height=400)
 st.session_state.essay_content = essay
@@ -156,9 +148,63 @@ st.caption(f"Word count: {word_count}")
 
 col1, col2 = st.columns(2)
 
+# --- FIRST FEEDBACK BUTTON ---
 if col1.button("🔍 Get Feedback"):
     if not s1 or not essay:
         st.error("Enter your name and essay.")
     else:
         with st.spinner("Teacher is marking..."):
-            formatted_points = "\n".join([f"-
+            formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
+            
+            full_prompt = (
+                f"{RUBRIC_INSTRUCTIONS}\n\n"
+                f"REQUIRED CONTENT POINTS FOR THIS TASK:\n{formatted_points}\n\n"
+                f"TASK CONTEXT:\n{task_desc}\n\n"
+                f"STUDENT ESSAY:\n{essay}"
+            )
+            fb = call_gemini(full_prompt)
+            
+            mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
+            mark_value = mark_search.group(1) if mark_search else "N/A"
+            
+            st.session_state.fb1 = fb
+            
+            requests.post(SHEET_URL, json={
+                "type": "FIRST", "Group": group, "Students": student_list, 
+                "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
+                "Draft 1": essay, "Word Count": word_count
+            })
+            st.rerun()
+
+# --- DISPLAY FEEDBACK AND REVISION BUTTON ---
+if st.session_state.fb1:
+    st.markdown("---")
+    st.info(st.session_state.fb1)
+
+    if col2.button("🚀 Submit Final Revision"):
+        with st.spinner("Checking revision..."):
+            rev_prompt = (
+                f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
+                f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
+                f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
+                f"3. If a student 'half-fixes' something (e.g., they fix the grammar but introduce a new spelling mistake like 'travell'), you MUST identify it as a failed fix.\n"
+                f"4. Be very specific. Use phrasing like: 'You attempted to fix X, but you introduced a new spelling error: Y'.\n"
+                f"5. Do NOT say 'Corrected' unless it is 100% perfect.\n"
+                f"6. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
+            )
+            fb2 = call_gemini(rev_prompt)
+            st.session_state.fb2 = fb2
+            
+            requests.post(SHEET_URL, json={
+                "type": "REVISION", 
+                "Group": group, 
+                "Students": student_list,
+                "Final Essay": essay, 
+                "FB 2": fb2
+            })
+            st.balloons()
+
+if st.session_state.fb2:
+    st.success(st.session_state.fb2)
