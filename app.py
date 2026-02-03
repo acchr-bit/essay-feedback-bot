@@ -150,9 +150,6 @@ st.session_state.essay_content = essay
 word_count = len(essay.split())
 st.caption(f"Word count: {word_count}")
 
-
-
-
 col1, col2 = st.columns(2)
 
 # --- FIRST FEEDBACK BUTTON (Only shows if no feedback exists yet) ---
@@ -189,32 +186,42 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     st.error(fb) # Shows the "Busy" message but button remains
 
 # --- DISPLAY FEEDBACK AND REVISION BUTTON ---
-if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
+# --- REVISION RESULTS (Now appears first at the top) ---
+if st.session_state.fb2:
+    st.success("### ✅ Final Revision Feedback")
+    st.write(st.session_state.fb2)
     st.markdown("---")
+
+# --- ORIGINAL FEEDBACK (Now appears below) ---
+if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
+    # If the student hasn't done the revision yet, show the title "Original Feedback"
+    # If they HAVE done it, label it "Previous Feedback"
+    header_text = "### 🔍 Original Feedback" if not st.session_state.fb2 else "### 📜 Previous Feedback (Draft 1)"
+    st.markdown(header_text)
     st.info(st.session_state.fb1)
     
-    # The 'Get Feedback' button is now gone, replaced by 'Submit Final Revision'
-    if col2.button("🚀 Submit Final Revision"):
-        with st.spinner("Checking revision..."):
-            rev_prompt = (
-                f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
-                f"--- NEW REVISED VERSION ---\n{essay}\n\n"
-                f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
-                f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
-                f"2. Check if the errors fixed correctly.\n"
-                f"3. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
-            )
-            fb2 = call_gemini(rev_prompt)
-            st.session_state.fb2 = fb2
-            
-            requests.post(SHEET_URL, json={
-                "type": "REVISION", 
-                "Group": group, 
-                "Students": student_list,
-                "Final Essay": essay, 
-                "FB 2": fb2
-            })
-            st.balloons()
-
-if st.session_state.fb2:
-    st.success(st.session_state.fb2)
+    # Show the Submit button only if they haven't submitted the final version yet
+    if not st.session_state.fb2:
+        if col2.button("🚀 Submit Final Revision"):
+            with st.spinner("Checking revision..."):
+                rev_prompt = (
+                    f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                    f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                    f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
+                    f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
+                    f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
+                    f"3. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
+                )
+                fb2 = call_gemini(rev_prompt)
+                st.session_state.fb2 = fb2
+                
+                # Send to Google Sheets
+                requests.post(SHEET_URL, json={
+                    "type": "REVISION", 
+                    "Group": group, 
+                    "Students": student_list,
+                    "Final Essay": essay, 
+                    "FB 2": fb2
+                })
+                st.balloons()
+                st.rerun() # This forces the app to refresh and put FB2 at the top
