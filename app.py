@@ -137,11 +137,9 @@ st.session_state.essay_content = essay
 word_count = len(essay.split())
 st.caption(f"Word count: {word_count}")
 
-# Create the columns for the buttons
-col1, col2 = st.columns(2)
 # --- 1. FIRST FEEDBACK BUTTON AREA ---
-# Keep button visible if fb1 is empty OR if it contains the "busy" error message
 if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
+    # Use a standard button (no columns) so it appears naturally below the text area
     if st.button("🔍 Get Feedback", use_container_width=True):
         if not s1 or not essay:
             st.error("Please enter your names and write your essay first.")
@@ -155,15 +153,11 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     f"STUDENT ESSAY:\n{essay}"
                 )
                 fb = call_gemini(full_prompt)
-                
-                # Update session state with whatever the AI returns
                 st.session_state.fb1 = fb
 
-                # ONLY record to Google Sheets and rerun if it's a SUCCESSFUL grade
                 if fb != "The teacher is busy. Try again in 10 seconds.":
                     mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
                     mark_value = mark_search.group(1) if mark_search else "N/A"
-                    
                     requests.post(SHEET_URL, json={
                         "type": "FIRST", "Group": group, "Students": student_list, 
                         "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
@@ -171,28 +165,56 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     })
                     st.rerun()
                 else:
-                    # If busy, show the error. The button stays visible because of our 'if' condition above.
                     st.error(fb)
 
 # --- 2. DISPLAY FIRST FEEDBACK & REVISION BUTTON ---
 if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
     st.markdown("---")
     
-    # Clean Steel Blue Styling
+    # Modern Steel Blue Styling for Draft 1
     fb1_text = st.session_state.fb1
     st.markdown(f"""
-        <div style="
-            background-color: #e7f3ff; 
-            color: #1a4a7a; 
-            padding: 20px; 
-            border-radius: 12px; 
-            border: 1px solid #b3d7ff;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        ">
+        <div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff; line-height: 1.6; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #1a4a7a; border-bottom: 2px solid #b3d7ff; padding-bottom: 10px;">
                 🔍 Read the feedback and improve your composition
             </h3>
             <div style="margin-top: 15px;">{fb1_text}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- 3. REVISION BUTTON (Appears physically BELOW the blue box) ---
+    if not st.session_state.fb2:
+        if st.button("🚀 Submit Final Revision", use_container_width=True):
+            with st.spinner("✨ Teacher is reviewing your changes... please wait."):
+                rev_prompt = (
+                    f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                    f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                    f"CRITICAL INSTRUCTIONS:\n"
+                    f"1. Compare NEW VERSION to ORIGINAL FEEDBACK.\n"
+                    f"2. Check if quoted errors were fixed.\n"
+                    f"3. NO new grade. NO names. NO B2."
+                )
+                fb2 = call_gemini(rev_prompt)
+                
+                if fb2 != "The teacher is busy. Try again in 10 seconds.":
+                    st.session_state.fb2 = fb2
+                    requests.post(SHEET_URL, json={
+                        "type": "REVISION", "Group": group, "Students": student_list,
+                        "Final Essay": essay, "FB 2": fb2
+                    })
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error(fb2)
+
+# --- 4. FINAL FEEDBACK (Styled Green Box at the bottom) ---
+if st.session_state.fb2:
+    fb2_text = st.session_state.fb2
+    st.markdown(f"""
+        <div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
+            <h3 style="margin-top: 0; color: #155724; border-bottom: 2px solid #c3e6cb; padding-bottom: 10px;">
+                ✅ Final Revision Feedback
+            </h3>
+            <div style="margin-top: 15px;">{fb2_text}</div>
         </div>
     """, unsafe_allow_html=True)
