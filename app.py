@@ -118,10 +118,17 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
                     mark_value = mark_search.group(1) if mark_search else "N/A"
                     requests.post(SHEET_URL, json={
-                        "type": "FIRST", "Group": group, "Students": student_list, 
-                        "Task": TASK_DESC, "Mark": mark_value, "FB 1": fb, 
-                        "Draft 1": essay, "Word Count": word_count
-                    })
+                      "type": "FIRST", 
+                      "Group": group, 
+                      "Students": student_list, 
+                      "Task": TASK_DESC,
+                      "Mark": mark_value,      # Col 5
+                      "Draft 1": essay,        # Col 6
+                      "FB 1": fb,              # Col 7
+                      "Final Essay": "",       # Col 8 (Placeholder)
+                      "FB 2": "",              # Col 9 (Placeholder)
+                      "Word Count": word_count # Col 10
+})                 
                     st.rerun()
                 else:
                     st.error(fb)
@@ -153,9 +160,18 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
                 
                 if fb2 != "The teacher is busy. Try again in 10 seconds.":
                     st.session_state.fb2 = fb2
+                    # THIS BLOCK MUST BE INDENTED TO BE INSIDE THE SUCCESS CONDITION
                     requests.post(SHEET_URL, json={
-                        "type": "REVISION", "Group": group, "Students": student_list,
-                        "Final Essay": essay, "FB 2": fb2, "Task": TASK_DESC
+                        "type": "REVISION", 
+                        "Group": group, 
+                        "Students": student_list,
+                        "Task": TASK_DESC,
+                        "Mark": "REVISED",       # Column 5
+                        "Draft 1": "---",        # Column 6
+                        "FB 1": "---",           # Column 7
+                        "Final Essay": essay,    # Column 8
+                        "FB 2": fb2,             # Column 9
+                        "Word Count": word_count # Column 10
                     })
                     st.balloons()
                     st.rerun()
