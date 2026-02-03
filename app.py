@@ -174,11 +174,24 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     # If busy, show the error. The button stays visible because of our 'if' condition above.
                     st.error(fb)
 
-# --- 2. DISPLAY FEEDBACK AND SEQUENTIAL BUTTONS ---
-# Only show the info box if we have a REAL grade (not the busy message)
+# --- 2. DISPLAY FIRST FEEDBACK & REVISION BUTTON ---
 if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
     st.markdown("---")
-    st.info(st.session_state.fb1)
+    
+    # Styled Blue Box for Draft 1
+    st.markdown(f"""
+        <div style="
+            background-color: #d1ecf1; 
+            color: #0c5460; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border: 2px solid #bee5eb;
+            margin-bottom: 20px;
+        ">
+            <h3 style="margin-top: 0; color: #0c5460;">🔍 Draft 1 Feedback</h3>
+            {st.session_state.fb1}
+        </div>
+    """, unsafe_allow_html=True)
 
     # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
@@ -204,7 +217,7 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
                 else:
                     st.error(fb2)
 
-# --- 4. FINAL FEEDBACK (Styled with a Green Background) ---
+# --- 4. FINAL FEEDBACK (Styled Green Box) ---
 if st.session_state.fb2:
     st.markdown(f"""
         <div style="
