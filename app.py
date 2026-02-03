@@ -143,52 +143,59 @@ st.session_state.essay_content = essay
 word_count = len(essay.split())
 st.caption(f"Word count: {word_count}")
 
+
+
+
 col1, col2 = st.columns(2)
 
-if col1.button("🔍 Get Feedback"):
-    if not s1 or not essay:
-        st.error("Enter your name and essay.")
-    else:
-        with st.spinner("Teacher is marking..."):
-            # Format the dynamic content points for the AI
-            formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
-            
-            full_prompt = (
-                f"{RUBRIC_INSTRUCTIONS}\n\n"
-                f"REQUIRED CONTENT POINTS FOR THIS TASK:\n{formatted_points}\n\n"
-                f"TASK CONTEXT:\n{task_desc}\n\n"
-                f"STUDENT ESSAY:\n{essay}"
-            )
-            fb = call_gemini(full_prompt)
-            
-            mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
-            mark_value = mark_search.group(1) if mark_search else "N/A"
-            
-            st.session_state.fb1 = fb
-            
-            requests.post(SHEET_URL, json={
-                "type": "FIRST", "Group": group, "Students": student_list, 
-                "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
-                "Draft 1": essay, "Word Count": word_count
-            })
-            st.rerun()
+# --- FIRST FEEDBACK BUTTON (Only shows if no feedback exists yet) ---
+if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
+    if col1.button("🔍 Get Feedback"):
+        if not s1 or not essay:
+            st.error("Enter your name and essay.")
+        else:
+            with st.spinner("Teacher is marking..."):
+                formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
+                
+                full_prompt = (
+                    f"{RUBRIC_INSTRUCTIONS}\n\n"
+                    f"REQUIRED CONTENT POINTS FOR THIS TASK:\n{formatted_points}\n\n"
+                    f"TASK CONTEXT:\n{task_desc}\n\n"
+                    f"STUDENT ESSAY:\n{essay}"
+                )
+                fb = call_gemini(full_prompt)
+                
+                # If successful (not the busy message), save it and refresh
+                if fb != "The teacher is busy. Try again in 10 seconds.":
+                    mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
+                    mark_value = mark_search.group(1) if mark_search else "N/A"
+                    
+                    st.session_state.fb1 = fb
+                    
+                    requests.post(SHEET_URL, json={
+                        "type": "FIRST", "Group": group, "Students": student_list, 
+                        "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
+                        "Draft 1": essay, "Word Count": word_count
+                    })
+                    st.rerun()
+                else:
+                    st.error(fb) # Shows the "Busy" message but button remains
 
-if st.session_state.fb1:
+# --- DISPLAY FEEDBACK AND REVISION BUTTON ---
+if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
     st.markdown("---")
     st.info(st.session_state.fb1)
-
-if col2.button("🚀 Submit Final Revision"):
+    
+    # The 'Get Feedback' button is now gone, replaced by 'Submit Final Revision'
+    if col2.button("🚀 Submit Final Revision"):
         with st.spinner("Checking revision..."):
             rev_prompt = (
                 f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
                 f"--- NEW REVISED VERSION ---\n{essay}\n\n"
                 f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
                 f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
-                f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
-                f"3. If a student 'half-fixes' something (e.g., they fix the grammar but introduce a new spelling mistake like 'travell'), you MUST identify it as a failed fix.\n"
-                f"4. Be very specific. Use phrasing like: 'You attempted to fix X, but you introduced a new spelling error: Y'.\n"
-                f"5. Do NOT say 'Corrected' unless it is 100% perfect.\n"
-                f"6. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
+                f"2. Check if the errors fixed correctly.\n"
+                f"3. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
             )
             fb2 = call_gemini(rev_prompt)
             st.session_state.fb2 = fb2
