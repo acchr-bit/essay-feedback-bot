@@ -140,7 +140,7 @@ st.caption(f"Word count: {word_count}")
 # Create the columns for the buttons
 col1, col2 = st.columns(2)
 # --- 1. FIRST FEEDBACK BUTTON AREA ---
-# We only show this button if the student hasn't received feedback yet.
+# Keep button visible if fb1 is empty OR if it contains the "busy" error message
 if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
     if st.button("🔍 Get Feedback", use_container_width=True):
         if not s1 or not essay:
@@ -156,10 +156,14 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                 )
                 fb = call_gemini(full_prompt)
                 
+                # Update session state with whatever the AI returns
+                st.session_state.fb1 = fb
+
+                # ONLY record to Google Sheets and rerun if it's a SUCCESSFUL grade
                 if fb != "The teacher is busy. Try again in 10 seconds.":
                     mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
                     mark_value = mark_search.group(1) if mark_search else "N/A"
-                    st.session_state.fb1 = fb
+                    
                     requests.post(SHEET_URL, json={
                         "type": "FIRST", "Group": group, "Students": student_list, 
                         "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
@@ -167,14 +171,16 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     })
                     st.rerun()
                 else:
+                    # If busy, show the error. The button stays visible because of our 'if' condition above.
                     st.error(fb)
 
 # --- 2. DISPLAY FEEDBACK AND SEQUENTIAL BUTTONS ---
+# Only show the info box if we have a REAL grade (not the busy message)
 if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
     st.markdown("---")
-    st.info(st.session_state.fb1) # This shows the first feedback box
+    st.info(st.session_state.fb1)
 
-    # --- 3. REVISION BUTTON (Appears physically BELOW the first feedback) ---
+    # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
         if st.button("🚀 Submit Final Revision", use_container_width=True):
             with st.spinner("✨ Teacher is reviewing your changes... please wait."):
@@ -186,16 +192,19 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
                     f"3. Identify half-fixes or new errors.\n4. NO new grade. NO names. NO B2."
                 )
                 fb2 = call_gemini(rev_prompt)
-                st.session_state.fb2 = fb2
                 
-                requests.post(SHEET_URL, json={
-                    "type": "REVISION", "Group": group, "Students": student_list,
-                    "Final Essay": essay, "FB 2": fb2
-                })
-                st.balloons()
-                st.rerun()
+                if fb2 != "The teacher is busy. Try again in 10 seconds.":
+                    st.session_state.fb2 = fb2
+                    requests.post(SHEET_URL, json={
+                        "type": "REVISION", "Group": group, "Students": student_list,
+                        "Final Essay": essay, "FB 2": fb2
+                    })
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error(fb2)
 
-# --- 4. FINAL FEEDBACK (Appears at the very bottom) ---
+# --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
     st.success("### ✅ Final Revision Feedback")
     st.write(st.session_state.fb2)
