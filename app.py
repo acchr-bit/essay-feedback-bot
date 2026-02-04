@@ -31,7 +31,7 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 3. NEVER mention the student's name in any of your feedbacks.
 4. NEVER use the term "B2" or "CEFR" in the feedback.
 5. NEVER provide the corrected version of a mistake. If you give the answer, you fail.
-4. ONLY comment on missing paragraphs if the text is literally one single block of text.
+4. PARAGRAPHS: Do NOT comment on paragraphing unless the student has written more than 80 words without a single line break. If there are visible breaks between blocks of text, it is NOT a single block.
 
 ### THE GRADING RULES (Internal use only):
 - CRITERION 1 (0–4 pts): Start 4,0. 
@@ -50,7 +50,7 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 3. Use the following exact headers in bold:
 
 'Adequació, coherència i cohesió (Score: X/4)'
-- Discuss organization, genre, register, and punctuation. 
+- Discuss organization of ideas in paragraphs, genre, register, and punctuation. 
 - Content: ONLY check for the items in the 'REQUIRED CONTENT POINTS' list. If they are present, do not mention missing details from the Task Context.
 - For punctuation errors, quote the phrase and explain the rule without correcting it.
 - Discuss connectors (quantity and variety).
@@ -170,9 +170,12 @@ if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try
                     f"- EXACT WORD COUNT: {word_count} words\n\n"              
                     f"REQUIRED CONTENT POINTS:\n{formatted_points}\n\n"
                     f"TASK CONTEXT:\n{TASK_DESC}\n\n"
-                    f"STUDENT ESSAY:\n{essay}"
+                    f"STUDENT ESSAY (PLEASE OBSERVE THE PARAGRAPHS BELOW):\n"
+                    f"\"\"\"\n"
+                    f"{essay}\n"
+                    f"\"\"\""
                 )
-        
+              
                 fb = call_gemini(full_prompt)
                 st.session_state.fb1 = fb
 
