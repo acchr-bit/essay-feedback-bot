@@ -64,7 +64,7 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 - Give 2 bullet points for improvement.
 
 ### FINAL GRADE CALCULATION:
-If the word count is under 80 words, include a note: "Length Penalty: Composition is under 80 words; the total score has been divided by 2."
+If the word count is under 80 words, include a note: "Length Penalty: Composition is under 80 words."
 AT THE VERY END, write 'FINAL MARK: X/10' (Use a comma for decimals).
 """
 
@@ -216,7 +216,7 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
             <div style="margin-top: 15px;">{fb1_text}</div>
         </div>
     """, unsafe_allow_html=True)
-
+  
     # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
         if st.button("🚀 Submit Final Revision", use_container_width=True):
@@ -224,9 +224,19 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
                 rev_prompt = (
                     f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
                     f"--- NEW REVISED VERSION ---\n{essay}\n\n"
-                    f"CRITICAL INSTRUCTIONS:\n1. Compare NEW VERSION to ORIGINAL FEEDBACK.\n"
-                    f"2. Check if quoted errors were fixed.\n3. NO new grade. NO names. NO B2."
+                    f"CRITICAL INSTRUCTIONS:\n"
+                    f"1. Compare NEW VERSION to ORIGINAL FEEDBACK to see if previous errors were fixed.\n"
+                    f"2. IMPORTANT: Scan the NEW VERSION for any NEW grammar, spelling, or punctuation errors introduced during the rewrite.\n"
+                    f"3. Mention both the improvements AND any new issues found.\n"
+                    f"4. NO new grade. NO names. NO B2."
                 )
+              
+            #    rev_prompt = (
+             #       f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+              #      f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+               #     f"CRITICAL INSTRUCTIONS:\n1. Compare NEW VERSION to ORIGINAL FEEDBACK.\n"
+                #    f"2. Check if quoted errors were fixed.\n3. NO new grade. NO names. NO B2."
+                #)
                 fb2 = call_gemini(rev_prompt)
                 
                 if fb2 != "The teacher is busy. Try again in 10 seconds.":
