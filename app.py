@@ -64,9 +64,11 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 - Give 2 bullet points for improvement.
 
 ### FINAL GRADE CALCULATION:
-If the word count is under 80 words, include a note: "Length Penalty: Composition is under 80 words."
+- If the word count is BETWEEN 50 and 80 words: Calculate the total (C1+C2+C3), divide the result by 2, and include the note: "There is a length penalty: Your composition is under 80 words."
+- If the word count is UNDER 50 words: The score for all criteria is 0. Include the note: "Your composition is too short to be marked." and set the FINAL MARK to 0/10.
+- Otherwise: Sum C1+C2+C3 for the total.
+
 AT THE VERY END, write 'FINAL MARK: X/10' (Use a comma for decimals).
-"""
 
 # 3. SESSION STATE
 if 'essay_content' not in st.session_state:
@@ -75,23 +77,6 @@ if 'fb1' not in st.session_state:
     st.session_state.fb1 = ""
 if 'fb2' not in st.session_state:
     st.session_state.fb2 = ""
-
-
-def call_gemini(prompt):
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={API_KEY}"
-    headers = {'Content-Type': 'application/json'}
-    # We add "generationConfig" to set the temperature to 0
-    data = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.0,  # This makes the AI much more consistent/deterministic
-            "topP": 0.8,
-            "topK": 10
-        }
-    }
-
-
-
 
 
 # 4. AI CONNECTION
