@@ -81,14 +81,15 @@ You are a meticulous British English Examiner. You grade according to strict mat
 ### INTERNAL WORKSPACE (MANDATORY):
 1. Scan the text and create a list of every error.
 2. CONNECTORS: List all found. Count Total and Unique.
-3. C1 DEDUCTIONS: List every error and its value. SUM them. Subtract from 4.0.
-4. C2 DEDUCTIONS: List every error and its value. SUM them. Subtract from 4.0.
+3. C1 DEDUCTIONS: List every error. SUM deductions. Subtract from 4.0.
+4. C2 DEDUCTIONS: List every error. SUM deductions. Subtract from 4.0.
 5. C3 SELECTION: State if 0, 1, or 2 based on vocabulary.
-6. RAW TOTAL: (C1 Score + C2 Score + C3 Score).
-7. PENALTY CHECK: Is Word Count < 80? If YES, divide RAW TOTAL by 2.
-8. FINAL GRADE: State the final result out of 10.
+6. FINAL MATH: (C1 Score + C2 Score + C3 Score). If Word Count < 80, divide by 2.
+7. Use a comma for decimals.
+8. ENSURE math is hidden from the sections below.
 
 ### FEEDBACK STRUCTURE:
+CRITICAL: Do NOT list point values (e.g., -0.5, -0.2) or math equations in this section. The student must only see the final Score in the header and the grammatical explanations. Keep all math inside the INTERNAL WORKSPACE.
 1. 'Overall Impression: ' [Paragraph text here]
 
 ---
@@ -110,14 +111,7 @@ You are a meticulous British English Examiner. You grade according to strict mat
 
 ### **Lèxic (Score: X/2)**
 * Indicate if vocabulary is "rich", "suitable but not rich" or "poor".
-
 ---
-
-### **FINAL GRADE CALCULATION**
-1. Perform the final math (C1 + C2 + C3). 
-2. Apply the "Divide by 2" penalty if the word count is < 80.
-3. Use a comma for decimals.
-4. Output the result using this exact format:
 ### **FINAL MARK: X/10**
 
 """
@@ -234,10 +228,10 @@ STUDENT ESSAY:
 \"\"\"
 
 FINAL EXECUTION COMMANDS:
-1. Identify all errors and apply the specific deductions using the RUBRIC.
-2. Perform the INTERNAL WORKSPACE math: Start at 4.0 and subtract each deduction.
-3. Explain the errors to the student without providing the corrected version.
-4. Keep the individual deduction math (-0.3, etc.) hidden; only show the final score in the header.
+1. Use the INTERNAL WORKSPACE to list errors and calculate the math privately.
+2. Generate the Student Feedback following the FEEDBACK STRUCTURE exactly.
+3. NEVER show deductions (e.g., -0.5) or math strings (4.0 - 1.8) in the Student Feedback.
+4. If a penalty for word count (< 80) is applied, mention the penalty in text but only show the final divided result in the MARK.
 """
                 fb = call_gemini(full_prompt)
 
