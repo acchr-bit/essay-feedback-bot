@@ -228,10 +228,12 @@ STUDENT ESSAY:
 \"\"\"
 
 FINAL EXECUTION COMMANDS:
-1. Use the INTERNAL WORKSPACE to list errors and calculate the math privately.
-2. Generate the Student Feedback following the FEEDBACK STRUCTURE exactly.
-3. NEVER show deductions (e.g., -0.5) or math strings (4.0 - 1.8) in the Student Feedback.
-4. If a penalty for word count (< 80) is applied, mention the penalty in text but only show the final divided result in the MARK.
+1. STRICT RULE: The "INTERNAL WORKSPACE" and "FINAL GRADE CALCULATION" steps are for your logic only. Do NOT include them in the final output.
+2. The student's response must BEGIN with "Overall Impression" and END with "FINAL MARK".
+3. Do NOT show the addition (C1+C2+C3) or the subtraction (4.0 - 0.5).
+4. Do NOT use the header "Final Grade Calculation" in the output.
+5. If a penalty for word count (< 80) is applied, mention the penalty in text but only show the final divided result in the MARK.
+
 """
                 fb = call_gemini(full_prompt)
 
