@@ -273,31 +273,33 @@ if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try ag
             <div style="margin-top: 15px;">{fb1_text}</div>
         </div>
     """, unsafe_allow_html=True)
-  
-    # --- 3. REVISION BUTTON ---
-    if not st.session_state.fb2:
-        if st.button("🚀 Submit Final Revision", use_container_width=True):
-            with st.spinner("✨ Teacher is reviewing your changes... please wait."):
-                rev_prompt = (
-                    f"{RUBRIC_INSTRUCTIONS}\n\n"
-                    f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
-                    f"--- NEW REVISED VERSION ---\n{essay}\n\n"
-                    f"EXAMINER REVISION PROTOCOL:\n"
-                    f"1. YOU ARE A STRICT EXAMINER.: Compare the NEW REVISED VERSION against the ORIGINAL FEEDBACK.\n"
-                    f"2. NO ANSWERS: Do NOT provide the correct version of any error. Only explain the rule.\n"
-                    f"3. VERIFY NEW ERRORS: Only list a 'New Error' if it is a genuine grammatical mistake that was NOT in the first draft. If a phrase is correct (e.g., 'finish having dinner' or 'First of all,'), do NOT flag it.\n\n"
-                    f"FORMAT YOUR OUTPUT EXACTLY LIKE THIS (Include the dashes and line breaks):\n\n"
-                    f"### **Corrected Errors**\n"
-                    f"(List improvements here or write 'None'.)\n\n"
-                    f"---\n\n"
-                    f"### **Uncorrected Errors**\n"
-                    f"(List original errors still present or write 'None'.)\n\n"
-                    f"---\n\n"
-                    f"### **New Errors Introduced**\n"
-                    f"(List genuine new mistakes or write 'None found'.)\n"
-                )
-             
-                fb2 = call_gemini(rev_prompt)
+
+# --- 3. REVISION BUTTON ---
+if not st.session_state.fb2:
+    if st.button("🚀 Submit Final Revision", use_container_width=True):
+        with st.spinner("✨ Teacher is reviewing your changes..."):
+            rev_prompt = (
+                f"{RUBRIC_INSTRUCTIONS}\n\n"
+                f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                f"REVISION PROTOCOL:\n"
+                f"1. YOU ARE A RIGOROUS EXAMINER. Compare the NEW VERSION against the ORIGINAL FEEDBACK word-by-word.\n"
+                f"2. DO NOT HALUCINATE. If a student fixed an error (e.g., changed 'aeroline' to 'airline' or 'an' to 'a'), you MUST move it to the Corrected section.\n"
+                f"3. DO NOT GIVE ANSWERS. Even for uncorrected errors, just explain the rule.\n"
+                f"4. Check for 'Noa' (capitalization), 'First of all,' (comma), and 'important' (spelling).\n\n"
+                f"STRICT FORMATTING INSTRUCTIONS:\n"
+                f"Start with a blank line. Use '#####' for headers. Put a blank line BETWEEN sections.\n\n"
+                f"##### **Corrected Errors**\n\n"
+                f"(List fixed items here)\n\n"
+                f"---\n\n"
+                f"##### **Uncorrected Errors**\n\n"
+                f"(List persistent items here)\n\n"
+                f"---\n\n"
+                f"##### **New Errors Introduced**\n\n"
+                f"(List new mistakes here or write 'None found.')"
+            )
+            
+            fb2 = call_gemini(rev_prompt)
                 
                 if fb2 != "The teacher is busy. Try again in 10 seconds.":
                     st.session_state.fb2 = fb2
