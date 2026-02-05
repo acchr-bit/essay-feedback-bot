@@ -89,9 +89,9 @@ You are a meticulous British English Examiner. You grade according to strict mat
 8. FINAL GRADE: State the final result out of 10.
 
 ### FEEDBACK STRUCTURE:
-1. Write the header 'Overall Impression: ' and give an overall impression.
-2. Leave two blank lines (hit Enter twice)
-3. Use the following exact headers in bold:
+1. Write the header 'Overall Impression: ' followed by a brief paragraph.
+2. IMPORTANT: Use a horizontal rule (---) or three empty lines to create a clear visual separation before the next section.
+3. Use the exact headers below in bold:
 
 'Adequació, coherència i cohesió (Score: X/4)'
 - Discuss organization of ideas in paragraphs, genre, register, and punctuation. 
