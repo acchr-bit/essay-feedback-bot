@@ -21,18 +21,6 @@ REQUIRED_CONTENT_POINTS = [
     "Activities you are going to do",
     "Information about classmates, friends, and family"
 ]
-# ----------------------------------------------------------------
-RUBRIC_INSTRUCTIONS = """
-
-
-### MANDATORY PROTOCOL:
-1. INTERNAL WORKSPACE: Before writing the feedback, identify every error. Assign it a value from the DEDUCTION RULES above.
-2. CALCULATE: Subtract the sum of all deductions from 4.0. (Example: If 3 spelling errors and 1 article error: 4.0 - 0.6 - 0.3 = 3.1).
-3. FEEDBACK: Quote the error. Explain the rule. NEVER reveal the corrected version. 
-4. DO NOT show the individual point deductions (e.g. -0.2) in the final feedback; only show the Final Score in the header.
-"""
-
-
 
 # 2. THE STERN TEACHER PROMPT
 RUBRIC_INSTRUCTIONS = """
@@ -51,12 +39,12 @@ You are a meticulous British English Examiner. You grade according to strict mat
 - DEDUCTION RULES:
     * Comma Splice (joining two sentences with a comma): -0.5 EACH instance
     * Missing Introductory Comma (after "First of all", "On the first day", etc.): -0.2 EACH instance
-    * MMissing Paragraphs or poorly organized content: -0.5 (once)
+    * Missing Paragraphs or poorly organized content: -0.5 (once)
     * Wrong Register/Format: -0.5 (once)
     * Wrong genre: -1.0 (once)
-    * General Punctuation: -0,3 EACH error
+    * General Punctuation: -0.3 EACH error
     * Content Coverage: -0.5 for EACH missing point from REQUIRED CONTENT POINTS.
-    * Connectors: -1,0 penalty if the total count of connectors is < 5 OR the number of unique/different connectors is < 3.
+    * Connectors: -1.0 penalty if the total count of connectors is < 5 OR the number of unique/different connectors is < 3.
 - Score cannot go below 0.
 
 ### CRITERION 2: Morfosintaxi i ortografia (0–4 pts)
@@ -66,14 +54,14 @@ You are a meticulous British English Examiner. You grade according to strict mat
     * Wrong Word Order: -0.3 EACH instance
     * Verb Tense / Verb Form: -0.3 EACH error
     * 'To be' / 'To have' forms: -0.5 EACH error
-    * Subject-Verb Agreement: -0.5 EACH errir
+    * Subject-Verb Agreement: -0.5 EACH error
     * Noun-Determiner Agreement: -0.5 EACH error
     * Articles (missing/wrong): -0.3 EACH instance
     * Prepositions: -0.2 EACH error
     * Pronouns (missing/wrong): -0.3 EACH instance
     * Collocations/Lexical: -0.1 EACH error
     * small 'i': -0.5 (once)
-    * comparative or superlative: -0,3 EACH error
+    * comparative or superlative: -0.3 EACH error
 - Score cannot go below 0.
 
 ### CRITERION 3: Lèxic i Riquesa (0–2 pts)
@@ -214,24 +202,15 @@ st.session_state.essay_content = essay
 word_count = len(essay.split())
 st.caption(f"Word count: {word_count}")
 
-
-
-
-
-
-
-
-
 # --- 1. FIRST FEEDBACK BUTTON ---
 if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
     if st.button("🔍 Get Feedback", use_container_width=True):
         if not s1 or not essay:
-            st.error("Please enter your names and write your essay first.")
+            st.error("Please enter your name and write your essay first.")
         else:
             with st.spinner("Teacher is marking your first draft..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
                 
-                # We use an f-string with triple quotes for better readability and logic
                 full_prompt = f"""
 {RUBRIC_INSTRUCTIONS}
 
@@ -252,24 +231,21 @@ STUDENT ESSAY:
 \"\"\"
 
 FINAL EXECUTION COMMANDS:
-1. Identify all errors and apply the specific deductions from the RUBRIC.
+1. Identify all errors and apply the specific deductions using the RUBRIC.
 2. Perform the INTERNAL WORKSPACE math: Start at 4.0 and subtract each deduction.
 3. Explain the errors to the student without providing the corrected version.
 4. Keep the individual deduction math (-0.3, etc.) hidden; only show the final score in the header.
 """
-                # Send 'full_prompt' to Gemini
-                response = model.generate_content(full_prompt)
-                
-                # Display the result
-                st.session_state.fb1 = response.text
-                st.markdown(st.session_state.fb1)
-              
                 fb = call_gemini(full_prompt)
-                st.session_state.fb1 = fb
 
                 if fb != "The teacher is busy. Try again in 10 seconds.":
+                    st.session_state.fb1 = fb
+                  
+                    # Extract the mark for Google Sheets
                     mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
                     mark_value = mark_search.group(1) if mark_search else "N/A"
+
+                    # Post to Google Sheets
                     requests.post(SHEET_URL, json={
                       "type": "FIRST", 
                       "Group": group, 
@@ -281,7 +257,7 @@ FINAL EXECUTION COMMANDS:
                       "Final Essay": "",       # Col 8 (Placeholder)
                       "FB 2": "",              # Col 9 (Placeholder)
                       "Word Count": word_count # Col 10
-})                 
+                  })                 
                     st.rerun()
                 else:
                     st.error(fb)
