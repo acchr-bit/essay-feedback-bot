@@ -163,4 +163,161 @@ st.markdown("""
     /* MAKES THE TEXT INSIDE THE WRITING BOX BIGGER */
     .stTextArea textarea {
         font-size: 18px !important;
-        line-height: 1.6 !
+        line-height: 1.6 !important;
+        font-family: 'Source Sans Pro', sans-serif !important;
+    }
+    
+    /* MAKES THE CAPTION (WORD COUNT) SLIGHTLY LARGER */
+    .stCaption {
+        font-size: 14px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+st.title("📝 Writing")
+
+with st.sidebar:
+    st.header("Student Info")
+    group = st.selectbox("Group", [" ","3A", "3C", "4A", "4B", "4C"])
+    s1 = st.text_input("Student 1 - Name and Surname")
+    s2 = st.text_input("Student 2 - Name and Surname")
+    s3 = st.text_input("Student 3 - Name and Surname")
+    s4 = st.text_input("Student 4 - Name and Surname")
+    names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
+    student_list = ", ".join(names)
+
+# Main Essay Area
+st.markdown(f"### 📋 Task Description")
+st.markdown(f"<div style='font-size: 20px; line-height: 1.5; margin-bottom: 20px;'>{TASK_DESC}</div>", unsafe_allow_html=True)
+
+essay = st.text_area("Write your composition below:", value=st.session_state.essay_content, height=500)
+st.session_state.essay_content = essay
+
+word_count = len(essay.split())
+st.caption(f"Word count: {word_count}")
+
+# --- 1. FIRST FEEDBACK BUTTON ---
+if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
+    if st.button("🔍 Get Feedback", use_container_width=True):
+        if not s1 or not essay:
+            st.error("Please enter your name and write your composition first.")
+        else:
+            with st.spinner("Teacher is marking your composition..."):
+                formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
+                
+                full_prompt = f"""
+{RUBRIC_INSTRUCTIONS}
+
+STATISTICS:
+- EXACT WORD COUNT: {word_count} words
+
+REQUIRED CONTENT POINTS:
+{formatted_points}
+
+TASK CONTEXT:
+{TASK_DESC}
+
+STUDENT ESSAY:
+\"\"\"
+{essay}
+\"\"\"
+
+FINAL EXECUTION COMMANDS:
+1. STRICT RULE: Complete this step silently. NEVER include any text from the 'INTERNAL WORKSPACE' or 'DEDUCTIONS' or "FINAL GRADE CALCULATION" in your final response.
+2. PUBLIC FEEDBACK: your response must BEGIN with "Overall Impression" and END with "FINAL MARK".
+3. DO NOT mention point values (e.g., -0.5), math equations, or error lists in the public feedback.
+4. If a word count penalty is applied, state "There is a length penalty" without showing the division math.
+5. STOPSIGN: The very last thing you write must be the FINAL MARK.
+"""
+                fb = call_gemini(full_prompt)
+
+                if fb != "The teacher is busy. Try again in 10 seconds.":
+                    st.session_state.fb1 = fb
+                    mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
+                    mark_value = mark_search.group(1) if mark_search else "N/A"
+
+                    requests.post(SHEET_URL, json={
+                      "type": "FIRST", 
+                      "Group": group, 
+                      "Students": student_list, 
+                      "Task": TASK_DESC,
+                      "Mark": mark_value,
+                      "Draft 1": essay,
+                      "FB 1": fb,
+                      "Final Essay": "",
+                      "FB 2": "",
+                      "Word Count": word_count
+                    })                  
+                    st.rerun()
+                else:
+                    st.error(fb)
+
+# --- 2. DISPLAY FIRST FEEDBACK ---
+if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
+    st.markdown("---")
+    fb1_text = st.session_state.fb1
+    st.markdown(f"""
+        <div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff; line-height: 1.6; margin-bottom: 20px;">
+            <h3 style="margin-top: 0; color: #1a4a7a; border-bottom: 2px solid #b3d7ff; padding-bottom: 10px;">
+                🔍 Read the feedback and improve your composition
+            </h3>
+            <div style="margin-top: 15px;">{fb1_text}</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- 3. REVISION BUTTON ---
+    if not st.session_state.fb2:
+        if st.button("🚀 Submit Final Revision", use_container_width=True):
+            with st.spinner("✨ Teacher is reviewing your changes..."):
+                rev_prompt = (
+                    f"{RUBRIC_INSTRUCTIONS}\n\n"
+                    f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                    f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                    f"REVISION PROTOCOL:\n"
+                    f"1. YOU ARE A RIGOROUS EXAMINER. Compare the NEW VERSION against the ORIGINAL FEEDBACK word-by-word.\n"
+                    f"2. DO NOT HALUCINATE. If a student fixed an error (e.g., changed 'aeroline' to 'airline'), you MUST move it to the Corrected section.\n"
+                    f"3. DO NOT GIVE ANSWERS. Even for uncorrected errors, just explain the rule.\n\n"
+                    f"STRICT FORMATTING INSTRUCTIONS:\n"
+                    f"Start with a blank line. Use '###' for headers. Put a blank line BETWEEN sections.\n\n"
+                    f"### **Corrected Errors**\n\n"
+                    f"(List fixed items here)\n\n"
+                    f"---\n\n"
+                    f"### **Uncorrected Errors**\n\n"
+                    f"(List persistent items here)\n\n"
+                    f"---\n\n"
+                    f"### **New Errors Introduced**\n\n"
+                    f"(List new mistakes here or write 'None found.')"
+                )
+                
+                fb2 = call_gemini(rev_prompt)
+                
+                if fb2 != "The teacher is busy. Try again in 10 seconds.":
+                    st.session_state.fb2 = fb2
+                    requests.post(SHEET_URL, json={
+                        "type": "REVISION", 
+                        "Group": group, 
+                        "Students": student_list,
+                        "Task": TASK_DESC,
+                        "Mark": "REVISED",
+                        "Draft 1": "---",
+                        "FB 1": "---",
+                        "Final Essay": essay,
+                        "FB 2": fb2,
+                        "Word Count": word_count
+                    })
+                    st.balloons()
+                    st.rerun()
+                else:
+                    st.error(fb2)
+
+# --- 4. FINAL FEEDBACK ---
+if st.session_state.fb2:
+    fb2_text = st.session_state.fb2
+    st.markdown(f"""
+        <div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
+            <h3 style="margin-top: 0; color: #155724; border-bottom: 2px solid #c3e6cb; padding-bottom: 10px;">
+                ✅ Final Revision Feedback
+            </h3>
+            <div style="margin-top: 15px;">{fb2_text}</div>
+        </div>
+    """, unsafe_allow_html=True)
