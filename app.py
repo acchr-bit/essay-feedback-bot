@@ -8,13 +8,7 @@ API_KEY = st.secrets["GEMINI_API_KEY"]
 SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
 
 # --- CHANGE THESE EVERY TIME YOU START A NEW COMPOSITION TASK ---
-TASK_DESC = ("This is your last year at school and you are planning your end of year trip "
-             "together with your classmates and teachers. Write an email to Liam, your "
-             "exchange partner from last year, who has just sent you an email. Tell him "
-             "about your plans for the trip: the places you are going to visit, the "
-             "activities you are going to do there, and also about your classmates, "
-             "friends and family.")
-
+TASK_TITLE = "End of Year Trip Email"
 REQUIRED_CONTENT_POINTS = [
     "Plans for the trip",
     "Places you are going to visit",
@@ -22,8 +16,7 @@ REQUIRED_CONTENT_POINTS = [
     "Information about classmates, friends, and family"
 ]
 # ----------------------------------------------------------------
-
-# 2. THE STERN TEACHER PROMPT
+# 2. THE STERN TEACHER PROMPT (Strict Content Filtering)
 RUBRIC_INSTRUCTIONS = """
 You are a British English Examiner. You must follow these 4 RED LINES:
 1. NEVER mention the student's name in any of your feedbacks.
@@ -43,7 +36,7 @@ You are a British English Examiner. You must follow these 4 RED LINES:
 - WORD COUNT PENALTY: If the text is under 80 words, calculate the total (C1+C2+C3) and divide by 2.
 
 ### FEEDBACK STRUCTURE:
-Start with 'Overall Impression'. Then leave a blank line and then use these exact headers in bold:
+Start with 'Overall Impression'. Then use these exact headers:
 
 'Adequació, coherència i cohesió (Score: X/4)'
 - Discuss organization, genre, register, and punctuation. 
@@ -88,16 +81,40 @@ def call_gemini(prompt):
             continue
     return "The teacher is busy. Try again in 10 seconds."
 
-# 5. UI CONFIGURATION
-st.set_page_config(page_title="Writing Test", layout="centered", initial_sidebar_state="expanded")
+# 5. UI
+st.set_page_config(
+    page_title="Writing Test", 
+    layout="centered",
+    initial_sidebar_state="expanded" # Start with it open
+)
 
+# --- CSS TO HIDE ICONS AND LOCK SIDEBAR OPEN ---
 st.markdown("""
     <style>
-    [data-testid="stHeaderActionElements"], .stDeployButton, [data-testid="stToolbar"], 
-    [data-testid="stSidebarCollapseButton"], #MainMenu, [data-testid="stDecoration"], footer {
+    /* 1. Hide the right-side icons (Share, GitHub, etc.) */
+    [data-testid="stHeaderActionElements"], .stDeployButton, [data-testid="stToolbar"] {
         display: none !important;
     }
-    header { background-color: rgba(0,0,0,0) !important; }
+
+    /* 2. Hide the 'Close' button (the arrow) on the sidebar so it can't be hidden */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
+    }
+
+    /* 3. Hide the main hamburger menu (the three lines) */
+    #MainMenu {
+        visibility: hidden;
+    }
+
+    /* 4. Hide the top decoration line and the footer */
+    [data-testid="stDecoration"], footer {
+        display: none !important;
+    }
+
+    /* 5. Clean up the header background so it's invisible but exists */
+    header {
+        background-color: rgba(0,0,0,0) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -113,102 +130,70 @@ with st.sidebar:
     names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
     student_list = ", ".join(names)
 
-# Main Essay Area
-essay = st.text_area(TASK_DESC, value=st.session_state.essay_content, height=400)
+task_desc = "This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family."
+essay = st.text_area(task_desc, value=st.session_state.essay_content, height=400)
 st.session_state.essay_content = essay
 
 word_count = len(essay.split())
 st.caption(f"Word count: {word_count}")
 
-# --- 1. FIRST FEEDBACK BUTTON ---
-if not st.session_state.fb1 or st.session_state.fb1 == "The teacher is busy. Try again in 10 seconds.":
-    if st.button("🔍 Get Feedback", use_container_width=True):
-        if not s1 or not essay:
-            st.error("Please enter your names and write your essay first.")
-        else:
-            with st.spinner("Teacher is marking your first draft..."):
-                formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
-                full_prompt = (
-                    f"{RUBRIC_INSTRUCTIONS}\n\n"
-                    f"REQUIRED CONTENT POINTS:\n{formatted_points}\n\n"
-                    f"TASK CONTEXT:\n{TASK_DESC}\n\n"
-                    f"STUDENT ESSAY:\n{essay}"
-                )
-                fb = call_gemini(full_prompt)
-                st.session_state.fb1 = fb
+col1, col2 = st.columns(2)
 
-                if fb != "The teacher is busy. Try again in 10 seconds.":
-                    mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
-                    mark_value = mark_search.group(1) if mark_search else "N/A"
-                    requests.post(SHEET_URL, json={
-                      "type": "FIRST", 
-                      "Group": group, 
-                      "Students": student_list, 
-                      "Task": TASK_DESC,
-                      "Mark": mark_value,      # Col 5
-                      "Draft 1": essay,        # Col 6
-                      "FB 1": fb,              # Col 7
-                      "Final Essay": "",       # Col 8 (Placeholder)
-                      "FB 2": "",              # Col 9 (Placeholder)
-                      "Word Count": word_count # Col 10
-})                 
-                    st.rerun()
-                else:
-                    st.error(fb)
+if col1.button("🔍 Get Feedback"):
+    if not s1 or not essay:
+        st.error("Enter your name and essay.")
+    else:
+        with st.spinner("Teacher is marking..."):
+            # Format the dynamic content points for the AI
+            formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
+            
+            full_prompt = (
+                f"{RUBRIC_INSTRUCTIONS}\n\n"
+                f"REQUIRED CONTENT POINTS FOR THIS TASK:\n{formatted_points}\n\n"
+                f"TASK CONTEXT:\n{task_desc}\n\n"
+                f"STUDENT ESSAY:\n{essay}"
+            )
+            fb = call_gemini(full_prompt)
+            
+            mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
+            mark_value = mark_search.group(1) if mark_search else "N/A"
+            
+            st.session_state.fb1 = fb
+            
+            requests.post(SHEET_URL, json={
+                "type": "FIRST", "Group": group, "Students": student_list, 
+                "Task": TASK_TITLE, "Mark": mark_value, "FB 1": fb, 
+                "Draft 1": essay, "Word Count": word_count
+            })
+            st.rerun()
 
-# --- 2. DISPLAY FIRST FEEDBACK ---
-if st.session_state.fb1 and st.session_state.fb1 != "The teacher is busy. Try again in 10 seconds.":
+if st.session_state.fb1:
     st.markdown("---")
-    fb1_text = st.session_state.fb1
-    st.markdown(f"""
-        <div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff; line-height: 1.6; margin-bottom: 20px;">
-            <h3 style="margin-top: 0; color: #1a4a7a; border-bottom: 2px solid #b3d7ff; padding-bottom: 10px;">
-                🔍 Read the feedback and improve your composition
-            </h3>
-            <div style="margin-top: 15px;">{fb1_text}</div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.info(st.session_state.fb1)
+if col2.button("🚀 Submit Final Revision"):
+        with st.spinner("Checking revision..."):
+            rev_prompt = (
+                f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
+                f"--- NEW REVISED VERSION ---\n{essay}\n\n"
+                f"CRITICAL INSTRUCTIONS FOR THE EXAMINER:\n"
+                f"1. You are a strict proofreader. Compare the NEW VERSION to the ORIGINAL FEEDBACK.\n"
+                f"2. Check if the errors quoted in the first feedback were fixed correctly.\n"
+                f"3. If a student 'half-fixes' something (e.g., they fix the grammar but introduce a new spelling mistake like 'travell'), you MUST identify it as a failed fix.\n"
+                f"4. Be very specific. Use phrasing like: 'You attempted to fix X, but you introduced a new spelling error: Y'.\n"
+                f"5. Do NOT say 'Corrected' unless it is 100% perfect.\n"
+                f"6. DO NOT give a new grade. NEVER mention names. NEVER mention B2."
+            )
+            fb2 = call_gemini(rev_prompt)
+            st.session_state.fb2 = fb2
+            
+            requests.post(SHEET_URL, json={
+                "type": "REVISION", 
+                "Group": group, 
+                "Students": student_list,
+                "Final Essay": essay, 
+                "FB 2": fb2
+            })
+            st.balloons()
 
-    # --- 3. REVISION BUTTON ---
-    if not st.session_state.fb2:
-        if st.button("🚀 Submit Final Revision", use_container_width=True):
-            with st.spinner("✨ Teacher is reviewing your changes... please wait."):
-                rev_prompt = (
-                    f"--- ORIGINAL FEEDBACK ---\n{st.session_state.fb1}\n\n"
-                    f"--- NEW REVISED VERSION ---\n{essay}\n\n"
-                    f"CRITICAL INSTRUCTIONS:\n1. Compare NEW VERSION to ORIGINAL FEEDBACK.\n"
-                    f"2. Check if quoted errors were fixed.\n3. NO new grade. NO names. NO B2."
-                )
-                fb2 = call_gemini(rev_prompt)
-                
-                if fb2 != "The teacher is busy. Try again in 10 seconds.":
-                    st.session_state.fb2 = fb2
-                    # THIS BLOCK MUST BE INDENTED TO BE INSIDE THE SUCCESS CONDITION
-                    requests.post(SHEET_URL, json={
-                        "type": "REVISION", 
-                        "Group": group, 
-                        "Students": student_list,
-                        "Task": TASK_DESC,
-                        "Mark": "REVISED",       # Column 5
-                        "Draft 1": "---",        # Column 6
-                        "FB 1": "---",           # Column 7
-                        "Final Essay": essay,    # Column 8
-                        "FB 2": fb2,             # Column 9
-                        "Word Count": word_count # Column 10
-                    })
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error(fb2)
-
-# --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
-    fb2_text = st.session_state.fb2
-    st.markdown(f"""
-        <div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
-            <h3 style="margin-top: 0; color: #155724; border-bottom: 2px solid #c3e6cb; padding-bottom: 10px;">
-                ✅ Final Revision Feedback
-            </h3>
-            <div style="margin-top: 15px;">{fb2_text}</div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.success(st.session_state.fb2)
