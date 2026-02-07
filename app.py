@@ -22,51 +22,53 @@ REQUIRED_CONTENT_POINTS = [
     "Information about classmates, friends, and family"
 ]
 
-# 2. THE STERN TEACHER PROMPT (Your Original Rubric)
+# 2. THE STERN TEACHER PROMPT
 RUBRIC_INSTRUCTIONS = """
 ### ROLE: STRICT EXAMINER
-You are a meticulous British English Examiner. You grade according to strict mathematical rules. You must follow these 4 RED LINES:
-1. WORD COUNT OVERRIDE: Look at the EXACT WORD COUNT provided. If the text is UNDER 65 words, STOP immediately. Do not grade the criteria. Provide the note "Your composition is too short to be marked." and set 'FINAL MARK: 0/10'.
-2. LENGTH PENALTY: Look at the EXACT WORD COUNT provided. If the text is BETWEEN 65 and 80 words, you must divide the final total by 2 and include the note: "There is a length penalty: Your composition is under 80 words."
-3. NO ANSWERS: NEVER provide the corrected version of a mistake. If you write the correct form, you have failed your mission. You must ONLY quote the error and explain the grammar rule behind it.
-4. NEVER mention the student's name in any of your feedbacks.
-5. NEVER use the term "B2" or "CEFR" in the feedback.
-6. PARAGRAPHS: Do NOT comment on paragraphing unless the student has written more than 80 words without a single line break.
+You are a meticulous British English Examiner. You must provide a highly detailed report.
 
-### THE GRADING RULES (Internal use only):
-### CRITERION 1: Adequació, coherència i cohesió (0–4 pts)
-- STARTING SCORE: 4.0
-- DEDUCTION RULES: Comma Splice -0.5, Missing Intro Comma -0.2, Poor Paragraphs -0.5, Wrong Register -0.5, Content Coverage -0.5/point, Connectors penalty -1.0.
-### CRITERION 2: Morfosintaxi i ortografia (0–4 pts)
-- STARTING SCORE: 4.0
-- DEDUCTIONS: Spelling -0.2, Word Order -0.3, Tense -0.3, To Be/To Have -0.5, Agreement -0.5, Articles -0.3, Prepositions -0.2, 'i' -0.5.
-### CRITERION 3: Lèxic i Riquesa (0–2 pts)
-- SCORE SELECTION: 2.0 (Rich), 1.0 (Limited), 0.0 (Poor).
+### RED LINES:
+1. WORD COUNT: <65 = 0/10. 65-80 = Divide total by 2.
+2. NO ANSWERS: NEVER provide the correction. (e.g., Do NOT say "change 'go' to 'went'". Say "Check the verb tense of 'go'").
+3. COMPLETENESS: You must list EVERY SINGLE error found. Do not summarize. If there are 10 spelling mistakes, list all 10.
 
-### INTERNAL WORKSPACE (MANDATORY):
-1. Scan the text and create a list of every error.
-2. Calculate the math.
-3. Use a comma for decimals.
+### THE GRADING RULES (Internal math):
+- C1 (Adequació): Start 4.0. Deduct -0.5 Comma Splice, -0.2 Intro Comma, -0.5 missing content.
+- C2 (Morfosintaxi): Start 4.0. Deduct -0.2 spelling, -0.3 tense/word order, -0.5 agreement.
+- C3 (Lèxic): 0.0, 1.0, or 2.0.
 
-### FEEDBACK STRUCTURE (PUBLIC):
-1. CRITICAL: Do NOT list point values (e.g., -0.5) or math in this section.
-2. PUBLIC RESPONSE MUST BEGIN WITH: 'Overall Impression: '
----
+### INTERNAL WORKSPACE:
+(Perform all math here. This section will be hidden.)
+
+### PUBLIC FEEDBACK STRUCTURE:
+Everything below must be visible to the student. Do NOT show the minus points (e.g. -0.5) here.
+
+Overall Impression: [Brief intro]
+
 ###### **Adequació, coherència i cohesió (Score: X/4)**
+- List every missing content point.
+- Quote every comma splice and explain the rule (no corrections).
+- Quote every missing introductory comma.
+- List all connectors found and evaluate variety.
+
 ###### **Morfosintaxi i ortografia (Score: X/4)**
+- EXHAUSTIVE LIST: Quote every single error found in the text.
+- For each error, state the category (e.g., Verb Tense, Subject-Verb Agreement, Preposition).
+- Explain the rule. 
+- **STRICTLY FORBIDDEN** to provide the correction. Use "Check the spelling/form of..."
+
 ###### **Lèxic (Score: X/2)**
----
+- Evaluate richness.
+
 ###### **FINAL MARK: X/10**
 """
 
-# NEW: REVISION SPECIALIST PROMPT
 REVISION_COACH_PROMPT = """
 ### ROLE: REVISION CHECKER
-Compare the NEW VERSION against the ORIGINAL FEEDBACK.
-- List fixed errors under '✅ Improvements'.
-- List missed errors under '⚠️ Still Needs Work'.
-- DO NOT give a grade. DO NOT give answers/corrections.
-- Follow the original rubric's "NO ANSWERS" rule strictly.
+Compare the NEW VERSION against the PREVIOUS FEEDBACK.
+1. Create a section '✅ Fixed Errors' listing exactly what was improved.
+2. Create a section '⚠️ Remaining Errors' listing what was missed.
+3. Use the original "NO ANSWERS" rule.
 """
 
 # 3. SESSION STATE
@@ -77,7 +79,7 @@ if 'fb1' not in st.session_state:
 if 'fb2' not in st.session_state:
     st.session_state.fb2 = ""
 
-# 4. AI CONNECTION (With Added Output Filter)
+# 4. AI CONNECTION
 def call_gemini(prompt):
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={API_KEY}"
     headers = {'Content-Type': 'application/json'}
@@ -85,18 +87,16 @@ def call_gemini(prompt):
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.0}
     }
-    
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
         raw_text = response.json()['candidates'][0]['content']['parts'][0]['text']
-        
-        # FILTER: If the AI leaks the Internal Workspace, this cuts it off
+        # Filter to remove Internal Workspace
         if "Overall Impression:" in raw_text:
             return "Overall Impression:" + raw_text.split("Overall Impression:")[-1]
         return raw_text
     return "The teacher is busy. Try again in 10 seconds."
 
-# 5. UI CONFIGURATION (Your original styling)
+# 5. UI CONFIGURATION
 st.set_page_config(page_title="Writing Test", layout="centered", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -116,15 +116,15 @@ st.title("📝 Writing")
 with st.sidebar:
     st.header("Student Info")
     group = st.selectbox("Group", [" ","3A", "3C", "4A", "4B", "4C"])
-    s1 = st.text_input("Student 1 - Name and Surname")
-    s2 = st.text_input("Student 2 - Name and Surname")
-    s3 = st.text_input("Student 3 - Name and Surname")
-    s4 = st.text_input("Student 4 - Name and Surname")
+    s1 = st.text_input("Student 1")
+    s2 = st.text_input("Student 2")
+    s3 = st.text_input("Student 3")
+    s4 = st.text_input("Student 4")
     names = [s.strip() for s in [s1, s2, s3, s4] if s.strip()]
     student_list = ", ".join(names)
 
 st.markdown(f"### 📋 Task Description")
-st.markdown(f"<div style='font-size: 20px; line-height: 1.5; margin-bottom: 20px;'>{TASK_DESC}</div>", unsafe_allow_html=True)
+st.info(TASK_DESC)
 
 essay = st.text_area("Write your composition below:", value=st.session_state.essay_content, height=500)
 st.session_state.essay_content = essay
@@ -137,9 +137,9 @@ if not st.session_state.fb1:
         if not s1 or not essay:
             st.error("Please enter your name and write your composition first.")
         else:
-            with st.spinner("Teacher is marking your composition..."):
+            with st.spinner("Teacher is marking every error..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
-                full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nWORD COUNT: {word_count}\nPOINTS: {formatted_points}\nESSAY:\n{essay}"
+                full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nWORD COUNT: {word_count}\nREQUIRED POINTS: {formatted_points}\nESSAY:\n{essay}"
                 fb = call_gemini(full_prompt)
                 st.session_state.fb1 = fb
                 
@@ -156,14 +156,13 @@ if not st.session_state.fb1:
 if st.session_state.fb1:
     st.markdown("---")
     st.markdown(f"""<div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff;">
-            <h3>🔍 Read the feedback and improve your composition</h3>
+            <h3>🔍 Detailed Feedback</h3>
             {st.session_state.fb1}</div>""", unsafe_allow_html=True)
 
     # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
         if st.button("🚀 Submit Final Revision", use_container_width=True):
-            with st.spinner("✨ Teacher is reviewing your changes..."):
-                # REVISION FIX: Use the specific comparison prompt
+            with st.spinner("✨ Checking your improvements..."):
                 rev_prompt = f"{REVISION_COACH_PROMPT}\n\nORIGINAL FEEDBACK:\n{st.session_state.fb1}\n\nNEW VERSION:\n{essay}"
                 fb2 = call_gemini(rev_prompt)
                 st.session_state.fb2 = fb2
@@ -178,5 +177,5 @@ if st.session_state.fb1:
 # --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
     st.markdown(f"""<div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
-            <h3>✅ Final Revision Feedback</h3>
+            <h3>✅ Revision Check</h3>
             {st.session_state.fb2}</div>""", unsafe_allow_html=True)
