@@ -23,46 +23,50 @@ REQUIRED_CONTENT_POINTS = [
 ]
 
 # 2. THE STERN TEACHER PROMPT (Draft 1)
+# I have added more aggressive "Do Not" instructions for the corrections.
 RUBRIC_INSTRUCTIONS = """
-### ROLE: STRICT EXAMINER
-You are a meticulous British English Examiner. You grade according to strict mathematical rules. You must follow these 4 RED LINES:
-1. WORD COUNT OVERRIDE: Look at the EXACT WORD COUNT provided. If the text is UNDER 65 words, STOP immediately. Do not grade the criteria. Provide the note "Your composition is too short to be marked." and set 'FINAL MARK: 0/10'.
-2. LENGTH PENALTY: Look at the EXACT WORD COUNT provided. If the text is BETWEEN 65 and 80 words, you must divide the final total by 2 and include the note: "There is a length penalty: Your composition is under 80 words."
-3. NO ANSWERS: NEVER provide the corrected version of a mistake. If you write the correct form, you have failed your mission. You must ONLY quote the error and explain the grammar rule behind it.
-4. NEVER mention the student's name in any of your feedbacks.
-5. NEVER use the term "B2" or "CEFR" in the feedback.
-6. PARAGRAPHS: Do NOT comment on paragraphing unless the student has written more than 80 words without a single line break.
+### ROLE: STRICT BRITISH EXAMINER
+You must grade this composition using a two-step process.
 
-### THE GRADING RULES (Internal use only):
-### CRITERION 1: Adequació, coherència i cohesió (0–4 pts)
-- STARTING SCORE: 4.0
-- DEDUCTION RULES: Comma Splice -0.5, Missing Intro Comma -0.2, Poor Paragraphs -0.5, Wrong Register -0.5, Content Coverage -0.5/point, Connectors penalty -1.0.
-### CRITERION 2: Morfosintaxi i ortografia (0–4 pts)
-- STARTING SCORE: 4.0
-- DEDUCTIONS: Spelling -0.2, Word Order -0.3, Tense -0.3, To Be/To Have -0.5, Agreement -0.5, Articles -0.3, Prepositions -0.2.
-### CRITERION 3: Lèxic i Riquesa (0–2 pts)
-- Choose 2.0 (Rich), 1.0 (Limited), or 0.0 (Poor).
+STEP 1: INTERNAL CALCULATION (Hidden from student)
+- Word Count Check: <65 = 0/10. 65-80 = Total/2.
+- Criterion 1 (Adequació): Start 4.0. Deduct -0.5 for Comma Splices, -0.2 for missing intro commas, -0.5 per missing content point.
+- Criterion 2 (Morfosintaxi): Start 4.0. Deduct -0.2 for spelling, -0.3 for verb/word order/articles, -0.5 for agreement.
+- Criterion 3 (Lèxic): Choose 2.0, 1.0, or 0.0.
 
-### FEEDBACK STRUCTURE (PUBLIC):
-1. 'Overall Impression: '
-2. ###### **Adequació, coherència i cohesió (Score: X/4)**
-3. ###### **Morfosintaxi i ortografia (Score: X/4)**
-4. ###### **Lèxic (Score: X/2)**
-5. ###### **FINAL MARK: X/10**
+STEP 2: PUBLIC FEEDBACK (Visible to student)
+- **STRICT RULE: NEVER PROVIDE THE CORRECTED WORD.** - Wrong: "Change 'aeroline' to 'airline'" (FORBIDDEN)
+- Right: "Check the spelling of the word 'aeroline'."
+- Wrong: "It should be 'having dinner'" (FORBIDDEN)
+- Right: "Check the verb choice in the phrase 'taking dinner'."
+
+### OUTPUT FORMAT:
+Your response must follow this structure exactly:
+
+[INTERNAL_WORKSPACE]
+(Write your math and error list here)
+
+[PUBLIC_FEEDBACK]
+Overall Impression: (Your intro)
+
+###### **Adequació, coherència i cohesió (Score: X/4)**
+(Feedback here)
+
+###### **Morfosintaxi i ortografia (Score: X/4)**
+(Feedback here - remember: explain the rule, do NOT give the answer)
+
+###### **Lèxic (Score: X/2)**
+(Feedback here)
+
+###### **FINAL MARK: X/10**
 """
 
-# --- NEW ADDITION: REVISION SPECIALIST PROMPT ---
-# This ensures the final feedback is actually a comparison, not a re-grading.
 REVISION_COACH_PROMPT = """
 ### ROLE: REVISION CHECKER
-You are a helpful writing tutor. Your ONLY goal is to check if the student fixed the errors found in the first draft.
-1. DO NOT give a new grade or points.
-2. DO NOT provide the correct answers.
-3. Compare the NEW VERSION against the ORIGINAL FEEDBACK.
-4. Use this structure:
-   - **✅ Improvements**: What did they fix correctly?
-   - **⚠️ Still Needs Work**: Which errors from the first feedback are still there?
-   - **🏁 Final Advice**: A brief encouraging closing.
+Compare the NEW VERSION against the ORIGINAL FEEDBACK.
+- List fixed errors under '✅ Improvements'.
+- List missed errors under '⚠️ Still Needs Work'.
+- DO NOT give a grade. DO NOT give answers/corrections.
 """
 
 # 3. SESSION STATE
@@ -72,7 +76,6 @@ if 'fb1' not in st.session_state:
     st.session_state.fb1 = ""
 if 'fb2' not in st.session_state:
     st.session_state.fb2 = ""
-
 
 # 4. AI CONNECTION
 def call_gemini(prompt):
@@ -84,10 +87,18 @@ def call_gemini(prompt):
     }
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
-        return response.json()['candidates'][0]['content']['parts'][0]['text']
+        raw_text = response.json()['candidates'][0]['content']['parts'][0]['text']
+        
+        # --- PYTHON FILTER: This removes the Internal Workspace automatically ---
+        if "[PUBLIC_FEEDBACK]" in raw_text:
+            return raw_text.split("[PUBLIC_FEEDBACK]")[-1].strip()
+        elif "Overall Impression:" in raw_text:
+            return "Overall Impression:" + raw_text.split("Overall Impression:")[-1]
+        return raw_text
+    
     return "The teacher is busy. Try again in 10 seconds."
 
-# 5. UI CONFIGURATION (Your Original Styling)
+# 5. UI CONFIGURATION
 st.set_page_config(page_title="Writing Test", layout="centered", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -130,11 +141,11 @@ if not st.session_state.fb1:
         else:
             with st.spinner("Teacher is marking your composition..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
-                full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nWORD COUNT: {word_count}\nPOINTS: {formatted_points}\nESSAY:\n{essay}"
+                full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nWORD COUNT: {word_count}\nREQUIRED POINTS:\n{formatted_points}\n\nSTUDENT ESSAY:\n{essay}"
                 fb = call_gemini(full_prompt)
                 st.session_state.fb1 = fb
                 
-                mark_search = re.search(r"FINAL MARK:\s*(\d+,?\d*/10)", fb)
+                mark_search = re.search(r"FINAL MARK:\s*(\d+[,.]?\d*/10)", fb)
                 mark_value = mark_search.group(1) if mark_search else "N/A"
                 
                 requests.post(SHEET_URL, json={
@@ -146,15 +157,15 @@ if not st.session_state.fb1:
 # --- 2. DISPLAY FIRST FEEDBACK ---
 if st.session_state.fb1:
     st.markdown("---")
-    st.markdown(f"""<div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff;">
-            <h3>🔍 Read the feedback and improve your composition</h3>
+    st.markdown(f"""<div style="background-color: #f0f7ff; color: #1a4a7a; padding: 25px; border-radius: 15px; border: 1px solid #b3d7ff; line-height: 1.8;">
+            <h3 style="color: #1a4a7a; border-bottom: 1px solid #b3d7ff; padding-bottom: 10px;">🔍 Feedback on Draft 1</h3>
             {st.session_state.fb1}</div>""", unsafe_allow_html=True)
 
     # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
+        st.info("💡 **Instructions:** Edit your original text in the box above to fix the mistakes listed in the feedback. When you are finished, click the button below.")
         if st.button("🚀 Submit Final Revision", use_container_width=True):
             with st.spinner("✨ Teacher is reviewing your changes..."):
-                # Notice we use the COACH prompt here for better accuracy
                 rev_prompt = f"{REVISION_COACH_PROMPT}\n\nORIGINAL FEEDBACK:\n{st.session_state.fb1}\n\nNEW REVISED VERSION:\n{essay}"
                 fb2 = call_gemini(rev_prompt)
                 st.session_state.fb2 = fb2
@@ -168,6 +179,6 @@ if st.session_state.fb1:
 
 # --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
-    st.markdown(f"""<div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
-            <h3>✅ Final Revision Feedback</h3>
+    st.markdown(f"""<div style="background-color: #e6ffed; color: #155724; padding: 25px; border-radius: 15px; border: 1px solid #c3e6cb; margin-top: 20px; line-height: 1.8;">
+            <h3 style="color: #155724; border-bottom: 1px solid #c3e6cb; padding-bottom: 10px;">✅ Final Revision Feedback</h3>
             {st.session_state.fb2}</div>""", unsafe_allow_html=True)
