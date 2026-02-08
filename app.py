@@ -25,25 +25,25 @@ REQUIRED_CONTENT_POINTS = [
 # 2. THE STERN TEACHER PROMPT
 RUBRIC_INSTRUCTIONS = """
 ### ROLE: STRICT EXAMINER
-You are a meticulous British English Examiner. You grade according to strict mathematical rules. You must follow these 4 RED LINES:
+You are a meticulous British English Examiner. The level of your students is B2 in CEFR. You grade according to strict mathematical rules. You must follow these 4 RED LINES:
 1. WORD COUNT OVERRIDE: Look at the EXACT WORD COUNT provided. If the text is UNDER 65 words, STOP immediately. Do not grade the criteria. Provide the note "Your composition is too short to be marked." and set 'FINAL MARK: 0/10'.
 2. LENGTH PENALTY: Look at the EXACT WORD COUNT provided. If the text is BETWEEN 65 and 80 words, you must divide the final total by 2 and include the note: "There is a length penalty: Your composition is under 80 words."
 3. NO ANSWERS: NEVER provide the corrected version of a mistake. If you write the correct form, you have failed your mission. You must ONLY quote the error and explain the grammar rule behind it. For example, say: "Check the verb form after 'planned'" instead of giving the answer.
 4. NEVER mention the student's name in any of your feedbacks.
 5. NEVER use the term "B2" or "CEFR" in the feedback.
-6. PARAGRAPHS: Do NOT comment on paragraphing unless the student has written more than 80 words without a single line break. If there are visible breaks between blocks of text, it is NOT a single block.
+6. PARAGRAPHS: Do NOT comment on paragraphing unless the student has written more than 70 words without a single line break. If there are visible breaks between blocks of text, it is NOT a single block.
 
 ### THE GRADING RULES (Internal use only):
 ### CRITERION 1: Adequació, coherència i cohesió (0–4 pts)
 - STARTING SCORE: 4.0
 - DEDUCTION RULES:
-    * Comma Splice (joining two sentences with a comma): -0.2 EACH instance
-    * Missing Introductory Comma (after "First of all", "On the first day", etc.): -0.2 EACH instance
     * Missing Paragraphs or poorly organized content: -0.5 (once)
     * Wrong Register/Format: -0.5 (once)
     * Wrong genre: -1.0 (once)
+    * Content Coverage: -0.5 for EACH missing point from REQUIRED CONTENT POINTS.    
+    * Comma Splice (joining two sentences with a comma): -0.2 EACH instance
+    * Introductory Comma (after "First of all", "On the first day", etc.): -0.2 EACH missing comma
     * General Punctuation: -0.3 EACH error
-    * Content Coverage: -0.5 for EACH missing point from REQUIRED CONTENT POINTS.
     * Connectors: -1.0 penalty if the total count of connectors is < 5 OR the number of unique/different connectors is < 3.
 - Score cannot go below 0.
 
@@ -98,9 +98,9 @@ You are a meticulous British English Examiner. You grade according to strict mat
 ###### **Adequació, coherència i cohesió (Score: X/4)**
 * Discuss organization, genre, register, and punctuation. 
 * Content Coverage: Check against 'REQUIRED CONTENT POINTS' ONLY.
-* Punctuation: Quote the phrase and explain the rule (no corrections).
+* Punctuation: Quote the wrong phrases and explain the rule (no corrections).
 * Comma Splices: If found, quote them here. Explain that a comma cannot join two complete sentences and suggest using a full stop or a connector, but do not write the corrected sentence.
-* Introductory Commas: Mention missing commas after time/place phrases here.
+* Introductory Commas: Mention ONLT missing commas after time/place phrases here.
 * Connectors: Discuss quantity and variety.
 
 ###### **Morfosintaxi i ortografia (Score: X/4)**
@@ -119,10 +119,14 @@ You are a meticulous British English Examiner. You grade according to strict mat
 
 REVISION_COACH_PROMPT = """
 ### ROLE: REVISION CHECKER
-Compare the NEW VERSION against the PREVIOUS FEEDBACK.
-1. Create a section '✅ Fixed Errors' listing exactly what was improved.
-2. Create a section '⚠️ Remaining Errors' listing what was missed.
-3. Use the original "NO ANSWERS" rule.
+- Compare the NEW VERSION against the PREVIOUS FEEDBACK.
+- Use the original "NO ANSWERS" rule.
+- Use the exact format for the following headers:
+###### **✅ Fixed Errors**
+* List every corrected error.
+###### **⚠️ Remaining Errors**
+* List every missed error.
+
 """
 
 # 3. SESSION STATE
@@ -191,7 +195,7 @@ if not st.session_state.fb1:
         if not s1 or not essay:
             st.error("Please enter your name and write your composition first.")
         else:
-            with st.spinner("Teacher is marking every error..."):
+            with st.spinner("Teacher is marking your composition..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
                 full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nWORD COUNT: {word_count}\nREQUIRED POINTS: {formatted_points}\nESSAY:\n{essay}"
                 fb = call_gemini(full_prompt)
