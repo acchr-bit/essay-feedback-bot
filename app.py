@@ -188,35 +188,47 @@ def format_revision_feedback(audit_data):
         "incorrectly_fixed": "⚠️ **Incorrectly fixed:**"
     }
     
-    output = f"\n**Overall Revision Summary:** {audit_data['OVERALL']}\n\n"
+    output = f"\n\n**Overall Revision Summary:** {audit_data['OVERALL']}\n\n"
     output += f"**Vocabulary status:** {audit_data['VOC_CHANGE']}\n\n---\n"
     
-    # Process Audit
-    for crit in ["C1", "C2"]:
-        output += f"### {'Organization & Punctuation' if crit == 'C1' else 'Grammar & Spelling'}\n"
-        crit_data = audit_data["audit"].get(crit, {})
-        
-        found_any = False
-        for code, instances in crit_data.items():
-            label = GRADING_CONFIG[crit]["rules"].get(code, {}).get("label", code)
+    # --- CRITERION 1: Adequació ---
+    output += "###### **Adequació, coherència i cohesió**\n"
+    c1_audit = audit_data["audit"].get("C1", {})
+    if not c1_audit:
+        output += "*No previous errors to check in this category.*\n"
+    else:
+        for code, instances in c1_audit.items():
+            label = GRADING_CONFIG["C1"]["rules"].get(code, {}).get("label", code)
+            output += f"* **{label}:**\n"
             for inst in instances:
-                found_any = True
                 emoji_status = status_map.get(inst['status'], "❓")
-                output += f"* {emoji_status} *{inst['q']}* ({label})\n"
+                output += f"  - {emoji_status} *{inst['q']}*\n"
                 if inst['status'] != "fixed":
-                    output += f"  - Hint: {inst['comment']}\n"
-        
-        if not found_any:
-            output += "No previous errors were found in this category.\n"
-        output += "\n"
+                    output += f"    - Hint: {inst['comment']}\n"
+    
+    # --- CRITERION 2: Morfosintaxi ---
+    output += "\n###### **Morfosintaxi i ortografia**\n"
+    c2_audit = audit_data["audit"].get("C2", {})
+    if not c2_audit:
+        output += "*No previous errors to check in this category.*\n"
+    else:
+        for code, instances in c2_audit.items():
+            label = GRADING_CONFIG["C2"]["rules"].get(code, {}).get("label", code)
+            output += f"* **{label}:**\n"
+            for inst in instances:
+                emoji_status = status_map.get(inst['status'], "❓")
+                output += f"  - {emoji_status} *{inst['q']}*\n"
+                if inst['status'] != "fixed":
+                    output += f"    - Hint: {inst['comment']}\n"
 
-    # Process New Errors
+    # --- NEW ERRORS SECTION ---
     if audit_data.get("new_errors"):
-        output += "### ⚠️ New Errors Found\n"
-        output += "You introduced some new mistakes in this version:\n"
+        output += "\n---\n###### **⚠️ New Errors Introduced**\n"
+        output += "Be careful! The following mistakes were not in your first draft:\n"
         for err in audit_data["new_errors"]:
             output += f"* *{err['q']}*: {err['r']}\n"
-            
+
+    output += "\n---\n**End of Revision Audit**"
     return output
 
 REVISION_COACH_PROMPT = """
