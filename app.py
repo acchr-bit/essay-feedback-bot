@@ -31,9 +31,7 @@ GRADING_CONFIG = {
             "SpCap": {"penalty": 0.2, "type": "list", "label": "Spelling/Caps"},
             "WWO": {"penalty": 0.3, "type": "list", "label": "Word Order"},
             "VTF": {"penalty": 0.3, "type": "list", "label": "Verb Tense/Form"},
-            "TBTH": {"penalty": 0.5, "type": "list", "label": "To Be/To Have"},
             "SVA": {"penalty": 0.5, "type": "list", "label": "Subject-Verb Agreement"},
-            "NDA": {"penalty": 0.3, "type": "list", "label": "Noun-Determiner Agreement"},
             "ART": {"penalty": 0.3, "type": "list", "label": "Articles"},
             "PREP": {"penalty": 0.2, "type": "list", "label": "Prepositions"},
             "PRO": {"penalty": 0.3, "type": "list", "label": "Pronouns"},
@@ -85,16 +83,14 @@ You must distinguish between **Global Issues** (listed once) and **Specific Occu
 - `CONN`: List of every connector used (e.g., "but", "however", "firstly").
 
 #### Criterion 2 (Morfosintaxi):
-- `SpCap`: Spelling or Capitalization errors.
-- `WWO`: Wrong Word Order.
-- `VTF`: Verb Tense or Verb Form errors.
-- `TBTH`: Misuse of 'To Be' vs 'To Have'.
-- `SVA`: Subject-Verb Agreement.
-- `NDA`: Noun-Determiner Agreement.
-- `ART`: Missing or wrong Articles (a, an, the).
+- `SpCap`: Spelling or Capitalization errors (except counted in `GP`)
+- `WWO`: Wrong Word Order. (examples of wrong: "We will miss each so much other", "I always am happy")
+- `VTF`: Verb Tense or Verb Form errors. (examples of wrong verb tense: "we went to Italy tomorrow", "I have played football yesterday")
+- `SVA`: Subject-Verb Agreement. (examples of wrong: "she play football", "Has I been here before?", "She are playing")
+- `ART`: Missing or wrong Articles (a, an, the). (examples of wrong: "an hotel", "I like sea", "I live on an island. An island is beautiful.")
 - `PREP`: Wrong Prepositions.
-- `PRO`: Pronoun errors.
-- `COLL`: Lexical Collocations (words that don't sound natural together).
+- `PRO`: Pronoun errors. (examples of wrong: "me and my friends study English", "This book is for they", "this book is my")
+- `COLL`: Lexical Collocations (words that don't sound natural together). (example of wrong: "take dinner", "make exam", "do the bed", "make a photo")
 - `SI`: Use of lowercase 'i' instead of uppercase 'I'.
 - `CSU`: Comparative or Superlative errors.
 
@@ -115,8 +111,8 @@ You must distinguish between **Global Issues** (listed once) and **Specific Occu
     "CS": [], "IC": [], "GP": [], "CONN": []
   },
   "C2": {
-    "SpCap": [], "WWO": [], "VTF": [], "TBTH": [], 
-    "SVA": [], "NDA": [], "ART": [], "PREP": [], "PRO": [], "COLL": [], 
+    "SpCap": [], "WWO": [], "VTF": [], 
+    "SVA": [],  "ART": [], "PREP": [], "PRO": [], "COLL": [], 
     "SI": [], "CSU": []
   },
   "C3": {"VOC": "1.0"},
