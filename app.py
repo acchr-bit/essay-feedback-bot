@@ -2,12 +2,45 @@ import streamlit as st
 import requests
 import re
 import time
+import json
 
 # 1. SETUP
 API_KEY = st.secrets["GEMINI_API_KEY"]
 SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
 
+# GRADING CONFIGURATION
 MIN_ESSAI_WORD_COUNT = 65
+GRADING_CONFIG = {
+    "C1": {
+        "start_score": 4.0,
+        "rules": {
+            "MPoPOC": {"penalty": 0.5, "type": "once", "label": "Organization/Paragraphs"},
+            "WRF": {"penalty": 0.5, "type": "once", "label": "Register/Format"},
+            "WG": {"penalty": 1.0, "type": "once", "label": "Genre Accuracy"},
+            "MCP": {"penalty": 0.5, "type": "list", "label": "Content Points"},
+            "CS": {"penalty": 0.2, "type": "list", "label": "Comma Splices"},
+            "IC": {"penalty": 0.2, "type": "list", "label": "Introductory Commas"},
+            "GP": {"penalty": 0.3, "type": "list", "label": "General Punctuation"},
+        }
+    },
+    "C2": {
+        "start_score": 4.0,
+        "rules": {
+            "SpCap": {"penalty": 0.2, "type": "list", "label": "Spelling/Caps"},
+            "WWO": {"penalty": 0.3, "type": "list", "label": "Word Order"},
+            "VTF": {"penalty": 0.3, "type": "list", "label": "Verb Tense/Form"},
+            "TBTH": {"penalty": 0.5, "type": "list", "label": "To Be/To Have"},
+            "SVA": {"penalty": 0.5, "type": "list", "label": "Subject-Verb Agreement"},
+            "NDA": {"penalty": 0.3, "type": "list", "label": "Noun-Determiner Agreement"},
+            "ART": {"penalty": 0.3, "type": "list", "label": "Articles"},
+            "PREP": {"penalty": 0.2, "type": "list", "label": "Prepositions"},
+            "PRO": {"penalty": 0.3, "type": "list", "label": "Pronouns"},
+            "COLL": {"penalty": 0.1, "type": "list", "label": "Collocations"},
+            "SI": {"penalty": 0.5, "type": "once", "label": "Small 'i' usage"},
+            "CSU": {"penalty": 0.3, "type": "list", "label": "Comparatives/Superlatives"},
+        }
+    }
+}
 
 # --- TASK CONFIGURATION ---
 TASK_DESC = ("This is your last year at school and you are planning your end of year trip "
@@ -26,98 +59,123 @@ REQUIRED_CONTENT_POINTS = [
 
 # 2. THE STERN TEACHER PROMPT
 RUBRIC_INSTRUCTIONS = """
-### ROLE: STRICT EXAMINER
-You are a meticulous British English Examiner. The level of your students is B2 in CEFR. You grade according to strict mathematical rules. You must follow these 4 RED LINES:
-1. WORD COUNT OVERRIDE: Look at the EXACT WORD COUNT provided. If the text is UNDER 65 words, STOP immediately. Do not grade the criteria. Provide the note "Your composition is too short to be marked." and set 'FINAL MARK: 0/10'.
-2. LENGTH PENALTY: Look at the EXACT WORD COUNT provided. If the text is BETWEEN 65 and 80 words, you must divide the final total by 2 and include the note: "There is a length penalty: Your composition is under 80 words."
-3. NO ANSWERS: NEVER provide the corrected version of a mistake. If you write the correct form, you have failed your mission. You must ONLY quote the error and explain the grammar rule behind it. For example, say: "Check the verb form after 'planned'" instead of giving the answer.
-4. NEVER mention the student's name in any of your feedbacks.
-5. NEVER use the term "B2" or "CEFR" in the feedback.
-6. PARAGRAPHS: Do NOT comment on paragraphing unless the student has written more than 70 words without a single line break. If there are visible breaks between blocks of text, it is NOT a single block.
+### ROLE: LINGUISTIC ANALYST (STRICT EXAMINER)
+You are an expert British English Examiner. Your task is to analyze the student's text and categorize every error found into a specific JSON structure.
 
-### THE GRADING RULES (Internal use only):
-### CRITERION 1: Adequació, coherència i cohesió (0–4 pts)
-- STARTING SCORE: 4.0
-- DEDUCTION RULES:
-    * Missing Paragraphs or poorly organized content: -0.5 (once)
-    * Wrong Register/Format: -0.5 (once)
-    * Wrong genre: -1.0 (once)
-    * Content Coverage: -0.5 for EACH missing point from REQUIRED CONTENT POINTS.    
-    * Comma Splice (joining two sentences with a comma): -0.2 EACH instance
-    * Introductory Comma (after "First of all", "On the first day", etc.): -0.2 EACH missing comma
-    * General Punctuation: -0.3 EACH error
-    * Connectors: -1.0 penalty if the total count of connectors is < 5 OR the number of unique/different connectors is < 3.
-- Score cannot go below 0.
+### RULES:
+1. **NO ANSWERS**: Never provide the corrected version of an error. 
+2. **EXHAUSTIVE**: You must catch and categorize every single mistake.
+3. **ONLY JSON**: Your entire output must be a single, valid JSON object.
 
-### CRITERION 2: Morfosintaxi i ortografia (0–4 pts)
-- STARTING SCORE: 4.0
-- DEDUCTIONS:
-    * Spelling/Capitalization: -0.2 EACH error
-    * Wrong Word Order: -0.3 EACH instance
-    * Verb Tense / Verb Form: -0.3 EACH error
-    * 'To be' / 'To have' forms: -0.5 EACH error
-    * Subject-Verb Agreement: -0.5 EACH error
-    * Noun-Determiner Agreement: -0.3 EACH error
-    * Articles (missing/wrong): -0.3 EACH instance
-    * Prepositions: -0.2 EACH error
-    * Pronouns (missing/wrong): -0.3 EACH instance
-    * Collocations/Lexical: -0.1 EACH error
-    * small 'i': -0.5 (once)
-    * comparative or superlative: -0.3 EACH error
-- Score cannot go below 0.
+### KEY DEFINITIONS (Use these codes):
+#### Criterion 1 (Adequació):
+- `MPoPOC`: Missing Paragraphs or poorly organized content.
+- `WRF`: Wrong Register/Format (e.g., formal vs informal).
+- `WG`: Wrong Genre (e.g., writing a story instead of an email).
+- `MCP`: Missing Content Points (From the list provided).
+- `CS`: Comma Splices (Joining two sentences with only a comma).
+- `IC`: Missing Introductory Commas (After "First of all", "Yesterday", etc.).
+- `GP`: General Punctuation (Missing full stops, capital letters at start of sentences).
+- `CONN`: List of every connector used (e.g., "but", "however", "firstly").
 
-### CRITERION 3: Lèxic i Riquesa (0–2 pts)
-- SCORE SELECTION:
-    * 2.0 (Rich): High variety of vocabulary, sophisticated phrasing, and appropriate use of idioms or advanced words.
-    * 1.0 (Limited): Repetitive vocabulary, basic word choices, but sufficient for the task.
-    * 0.0 (Poor): Very basic or incorrect vocabulary that hinders communication.
-- Choose one value (2.0, 1.0, or 0.0). No decimals.
+#### Criterion 2 (Morfosintaxi):
+- `SpCap`: Spelling or Capitalization errors.
+- `WWO`: Wrong Word Order.
+- `VTF`: Verb Tense or Verb Form errors.
+- `TBTH`: Misuse of 'To Be' vs 'To Have'.
+- `SVA`: Subject-Verb Agreement.
+- `NDA`: Noun-Determiner Agreement.
+- `ART`: Missing or wrong Articles (a, an, the).
+- `PREP`: Wrong Prepositions.
+- `PRO`: Pronoun errors.
+- `COLL`: Lexical Collocations (words that don't sound natural together).
+- `SI`: Use of lowercase 'i' instead of uppercase 'I'.
+- `CSU`: Comparative or Superlative errors.
 
-### FINAL WORD COUNT PENALTY (CRITICAL)
-- RULE: If the EXACT WORD COUNT is < 80 words:
-    1. Calculate the raw total: (Score C1 + Score C2 + Score C3).
-    2. Divide that total by 2.
-    3. This is the Final Grade.
-- If word count is 80 or more, the Final Grade is simply (C1 + C2 + C3).
+#### Criterion 3 (Lèxic):
+- `VOC`: Vocabulary level (Must be "2.0", "1.0", or "0.0").
 
-### INTERNAL WORKSPACE (MANDATORY):
-1. Scan the text and create a list of every error.
-2. CONNECTORS: List all found. Count Total and Unique.
-3. C1 DEDUCTIONS: List every error. SUM deductions. Subtract from 4.0.
-4. C2 DEDUCTIONS: List every error. SUM deductions. Subtract from 4.0.
-5. C3 SELECTION: State if 0, 1, or 2 based on vocabulary.
-6. FINAL MATH: (C1 Score + C2 Score + C3 Score). If Word Count < 80, divide by 2.
-7. Use a comma for decimals.
-8. ENSURE math is hidden from the sections below.
-
-### FEEDBACK STRUCTURE (PUBLIC):
-1. CRITICAL: Do NOT list point values (e.g., -0.5, -0.2) or math equations in this section. The student must only see the final Score in the header and the grammatical explanations. Keep all math inside the INTERNAL WORKSPACE.
-2. 'Overall Impression: ' [Write a brief introductory paragraph here]
-
----
-
-3. Use the exact format for the following headers:
-###### **Adequació, coherència i cohesió (Score: X/4)**
-* Discuss organization, genre, register, and punctuation. 
-* Content Coverage: Check against 'REQUIRED CONTENT POINTS' ONLY.
-* Punctuation: Quote the wrong phrases and explain the rule (no corrections).
-* Comma Splices: If found, quote them here. Explain that a comma cannot join two complete sentences and suggest using a full stop or a connector, but do not write the corrected sentence.
-* Introductory Commas: Mention ONLT missing commas after time/place phrases here.
-* Connectors: Discuss quantity and variety.
-
-###### **Morfosintaxi i ortografia (Score: X/4)**
-* Quote every morphosyntactic and lexical error found (e.g. verb tense, agreement, prepositions, word order, collocations, articles, and pronouns).
-* Explain the rule. **STRICTLY FORBIDDEN** to provide the correction. The student must find the correction themselves.
-* Spelling: Use "Check the capitalization/spelling of the word [wrong word]".
-
-###### **Lèxic (Score: X/2)**
-* Indicate if vocabulary is "rich", "suitable but not rich" or "poor".
-
----
-
-###### **FINAL MARK: X/10** (Use a comma for decimals, e.g., 4,6/10)
-
+### OUTPUT STRUCTURE:
+{
+  "C1": {
+    "MPoPOC": [], "WRF": [], "WG": [], "MCP": [], 
+    "CS": [{"q": "quote", "r": "rule"}], 
+    "IC": [{"q": "quote", "r": "rule"}], 
+    "GP": [{"q": "quote", "r": "rule"}],
+    "CONN": []
+  },
+  "C2": {
+    "SpCap": [{"q": "quote", "r": "rule"}], "WWO": [], "VTF": [], "TBTH": [], 
+    "SVA": [], "NDA": [], "ART": [], "PREP": [], "PRO": [], "COLL": [], 
+    "SI": [], "CSU": []
+  },
+  "C3": {"VOC": "1.0"},
+  "OVERALL": {"IMP": "Brief general impression paragraph."}
+}
 """
+
+import json
+
+def compute_mark(data, word_count):
+    # Calculate C1
+    c1_score = GRADING_CONFIG["C1"]["start_score"]
+    for key, rule in GRADING_CONFIG["C1"]["rules"].items():
+        errors = data["C1"].get(key, [])
+        count = 1 if rule["type"] == "once" and errors else len(errors)
+        c1_score -= (count * rule["penalty"])
+    
+    # Connector Penalty logic
+    conns = data["C1"].get("CONN", [])
+    if len(conns) < 5 or len(set(conns)) < 3:
+        c1_score -= 1.0
+    c1_score = max(0, c1_score)
+
+    # Calculate C2
+    c2_score = GRADING_CONFIG["C2"]["start_score"]
+    for key, rule in GRADING_CONFIG["C2"]["rules"].items():
+        errors = data["C2"].get(key, [])
+        count = 1 if rule["type"] == "once" and errors else len(errors)
+        c2_score -= (count * rule["penalty"])
+    c2_score = max(0, c2_score)
+
+    # C3
+    c3_score = float(data["C3"].get("VOC", 1.0))
+
+    total = c1_score + c2_score + c3_score
+    if word_count < 80:
+        total = total / 2
+        
+    return round(c1_score, 2), round(c2_score, 2), c3_score, round(total, 2)
+
+def format_feedback(data, scores):
+    c1_s, c2_s, c3_s, total = scores
+    output = f"**Overall Impression:** {data['OVERALL']['IMP']}\n\n---\n"
+    
+    # Format C1
+    output += f"###### **Adequació, coherència i cohesió (Score: {str(c1_s).replace('.', ',')}/4)**\n"
+    for key, rule in GRADING_CONFIG["C1"]["rules"].items():
+        errors = data["C1"].get(key, [])
+        if errors:
+            output += f"* **{rule['label']}:**\n"
+            for e in errors:
+                if isinstance(e, dict):
+                    output += f"  - \"{e['q']}\": {e['r']}\n"
+                else:
+                    output += f"  - {e}\n"
+                    
+    # Format C2
+    output += f"\n###### **Morfosintaxi i ortografia (Score: {str(c2_s).replace('.', ',')}/4)**\n"
+    for key, rule in GRADING_CONFIG["C2"]["rules"].items():
+        errors = data["C2"].get(key, [])
+        if errors:
+            output += f"* **{rule['label']}:**\n"
+            for e in errors:
+                output += f"  - \"{e['q']}\": {e['r']}\n" if isinstance(e, dict) else f"  - {e}\n"
+
+    output += f"\n###### **Lèxic (Score: {str(c3_s).replace('.', ',')}/2)**\n"
+    output += f"\n---\n###### **FINAL MARK: {str(total).replace('.', ',')}/10**"
+    if total < 4.0: output += "\n\n⚠️ *Length penalty applied or significant errors found.*"
+    return output
 
 REVISION_COACH_PROMPT = """
 ### ROLE: REVISION CHECKER
@@ -145,16 +203,27 @@ def call_gemini(prompt):
     headers = {'Content-Type': 'application/json'}
     data = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.0}
+        "generationConfig": {
+            "temperature": 0.0,
+            "response_mime_type": "application/json" # This forces Gemini to output valid JSON
+        }
     }
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200:
-        raw_text = response.json()['candidates'][0]['content']['parts'][0]['text']
-        # Filter to remove Internal Workspace
-        if "Overall Impression:" in raw_text:
-            return "Overall Impression:" + raw_text.split("Overall Impression:")[-1]
-        return raw_text
-    return "The teacher is busy. Try again in 10 seconds."
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            raw_text = response.json()['candidates'][0]['content']['parts'][0]['text']
+            
+            # Remove Markdown code blocks if the AI included them
+            clean_json = re.sub(r'^```json\s*|```$', '', raw_text, flags=re.MULTILINE).strip()
+            return clean_json
+        
+        elif response.status_code == 429:
+            return "The teacher is busy (Rate limit). Try again in 10 seconds."
+            
+        return f"Error: {response.status_code}"
+    
+    except Exception as e:
+        return f"Connection error: {str(e)}"
 
 # 5. UI CONFIGURATION
 st.set_page_config(page_title="Writing Test", layout="centered", initial_sidebar_state="expanded")
@@ -197,30 +266,55 @@ if not st.session_state.fb1:
         if not s1 or not essay:
             st.error("Please enter your name and write your composition first.")
         elif word_count <= MIN_ESSAI_WORD_COUNT:
-            fb = """Your composition is too short to be marked. FINAL MARK: 0/10"""
-
+            # Handle the too-short case immediately
+            fb = "Your composition is too short to be marked. FINAL MARK: 0/10"
             st.session_state.fb1 = fb
-
             requests.post(SHEET_URL, json={
-                    "type": "FIRST", "Group": group, "Students": student_list, "Mark": "0/10",
-                    "Draft 1": essay, "FB 1": fb, "Word Count": word_count
-                })
+                "type": "FIRST", "Group": group, "Students": student_list, "Mark": "0/10",
+                "Draft 1": essay, "FB 1": fb, "Word Count": word_count
+            })
             st.rerun()
         else:
-            with st.spinner("Teacher is marking your composition..."):
+            with st.spinner("Teacher is analyzing your text and computing the grade..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
-                full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nWORD COUNT: {word_count}\nREQUIRED POINTS: {formatted_points}\nESSAY:\n{essay}"
-                fb = call_gemini(full_prompt)
-                st.session_state.fb1 = fb
+                full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nREQUIRED POINTS:\n{formatted_points}\n\nESSAY:\n{essay}"
                 
-                mark_search = re.search(r"FINAL MARK:\s*(\d+[,.]?\d*/10)", fb)
-                mark_value = mark_search.group(1) if mark_search else "N/A"
+                raw_response = call_gemini(full_prompt)
                 
-                requests.post(SHEET_URL, json={
-                    "type": "FIRST", "Group": group, "Students": student_list, "Mark": mark_value,
-                    "Draft 1": essay, "FB 1": fb, "Word Count": word_count
-                })
-                st.rerun()
+                # Logic to determine if we got valid JSON or an error message
+                if raw_response.strip().startswith("{"):
+                    try:
+                        # 1. Clean and Load JSON
+                        clean_json = re.sub(r'^```json\s*|```$', '', raw_response, flags=re.MULTILINE).strip()
+                        data = json.loads(clean_json)
+                        
+                        # 2. Compute scores using Python logic
+                        # scores returns: (c1_score, c2_score, c3_score, final_mark)
+                        scores = compute_mark(data, word_count)
+                        
+                        # 3. Format the beautiful output for the student
+                        st.session_state.fb1 = format_feedback(data, scores)
+                        
+                        # 4. Log to Google Sheets
+                        requests.post(SHEET_URL, json={
+                            "type": "FIRST", 
+                            "Group": group, 
+                            "Students": student_list, 
+                            "Mark": f"{str(scores[3]).replace('.', ',')}/10", 
+                            "Draft 1": essay,
+                            "FB 1": st.session_state.fb1, 
+                            "Word Count": word_count
+                        })
+                        st.rerun()
+                        
+                    except Exception as e:
+                        st.error(f"Linguistic Analysis Error: The AI response was not in the expected format.")
+                        with st.expander("Debug Raw Response"):
+                            st.code(raw_response)
+                            st.write(f"Python Error: {e}")
+                else:
+                    # This handles the "Teacher is busy" or connection error strings
+                    st.error(raw_response)
 
 # --- 2. DISPLAY FIRST FEEDBACK ---
 if st.session_state.fb1:
