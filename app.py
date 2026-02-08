@@ -149,7 +149,7 @@ def compute_mark(data, word_count):
 
 def format_feedback(data, scores):
     c1_s, c2_s, c3_s, total = scores
-    output = f"**Overall Impression:** {data['OVERALL']['IMP']}\n\n---\n"
+    output = f"**\nOverall Impression:** {data['OVERALL']['IMP']}\n\n---\n"
     
     # Format C1
     output += f"###### **Adequació, coherència i cohesió (Score: {str(c1_s).replace('.', ',')}/4)**\n"
