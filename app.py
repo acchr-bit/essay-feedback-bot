@@ -7,6 +7,8 @@ import time
 API_KEY = st.secrets["GEMINI_API_KEY"]
 SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
 
+MIN_ESSAI_WORD_COUNT = 65
+
 # --- TASK CONFIGURATION ---
 TASK_DESC = ("This is your last year at school and you are planning your end of year trip "
              "together with your classmates and teachers. Write an email to Liam, your "
@@ -194,6 +196,14 @@ if not st.session_state.fb1:
     if st.button("🔍 Get Feedback", use_container_width=True):
         if not s1 or not essay:
             st.error("Please enter your name and write your composition first.")
+        elif word_count <= MIN_ESSAI_WORD_COUNT:
+            fb = "Your composition is too short to be marked."
+            st.error(fb)
+
+            requests.post(SHEET_URL, json={
+                    "type": "FIRST", "Group": group, "Students": student_list, "Mark": "0/10",
+                    "Draft 1": essay, "FB 1": fb, "Word Count": word_count
+                })
         else:
             with st.spinner("Teacher is marking your composition..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
