@@ -279,7 +279,7 @@ if not st.session_state.fb1:
                 full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nREQUIRED POINTS:\n{formatted_points}\n\nESSAY:\n{essay}"
                 
                 raw_response = call_gemini(full_prompt)
-                st.info(raw_response)
+                save_raw_response = "" + raw_response
                 
                 # Logic to determine if we got valid JSON or an error message
                 if raw_response.strip().startswith("{"):
@@ -322,6 +322,8 @@ if st.session_state.fb1:
     st.markdown(f"""<div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff;">
             <h3>🔍 Detailed Feedback</h3>
             {st.session_state.fb1}</div><p></p>""", unsafe_allow_html=True)
+
+st.info(save_raw_response)
 
 # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
