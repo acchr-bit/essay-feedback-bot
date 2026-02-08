@@ -169,7 +169,7 @@ def format_feedback(data, scores):
             output += f"* **{rule['label']}:**\n"
             for e in errors:
                 if isinstance(e, dict):
-                    output += f"  - \"{e['q']}\": {e['r']}\n"
+                    output += f"  - *{e['q']}*: {e['r']}\n"
                 else:
                     output += f"  - {e}\n"
                     
@@ -180,7 +180,7 @@ def format_feedback(data, scores):
         if errors:
             output += f"* **{rule['label']}:**\n"
             for e in errors:
-                output += f"  - \"{e['q']}\": {e['r']}\n" if isinstance(e, dict) else f"  - {e}\n"
+                output += f"  - *{e['q']}*: {e['r']}\n" if isinstance(e, dict) else f"  - {e}\n"
 
     output += f"\n###### **Lèxic (Score: {str(c3_s).replace('.', ',')}/2)**\n"
     output += f"\n---\n###### **FINAL MARK: {str(total).replace('.', ',')}/10**"
