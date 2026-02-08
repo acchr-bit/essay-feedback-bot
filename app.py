@@ -7,7 +7,7 @@ import json
 # 1. SETUP
 API_KEY = st.secrets["GEMINI_API_KEY"]
 SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
-DEBUG = True
+DEBUG = False
 
 
 # GRADING CONFIGURATION
@@ -183,16 +183,73 @@ def format_feedback(data, scores):
     if total < 4.0: output += "\n\n⚠️ *Length penalty applied or significant errors found.*"
     return output
 
-REVISION_COACH_PROMPT = """
-### ROLE: REVISION CHECKER
-- Compare the NEW VERSION against the PREVIOUS FEEDBACK.
-- Use the original "NO ANSWERS" rule.
-- Use the exact format for the following headers:
-###### **✅ Fixed Errors**
-* List every corrected error.
-###### **⚠️ Remaining Errors**
-* List every missed error.
+def format_revision_feedback(audit_data):
+    status_map = {
+        "fixed": "✅ **Fixed:**",
+        "still_present": "❌ **Still present:**",
+        "incorrectly_fixed": "⚠️ **Incorrectly fixed:**"
+    }
+    
+    output = f"**Overall Revision Summary:** {audit_data['OVERALL']}\n\n"
+    output += f"**Vocabulary status:** {audit_data['VOC_CHANGE']}\n\n---\n"
+    
+    # Process Audit
+    for crit in ["C1", "C2"]:
+        output += f"### {'Organization & Punctuation' if crit == 'C1' else 'Grammar & Spelling'}\n"
+        crit_data = audit_data["audit"].get(crit, {})
+        
+        found_any = False
+        for code, instances in crit_data.items():
+            label = GRADING_CONFIG[crit]["rules"].get(code, {}).get("label", code)
+            for inst in instances:
+                found_any = True
+                emoji_status = status_map.get(inst['status'], "❓")
+                output += f"* {emoji_status} *{inst['q']}* ({label})\n"
+                if inst['status'] != "fixed":
+                    output += f"  - Hint: {inst['comment']}\n"
+        
+        if not found_any:
+            output += "No previous errors were found in this category.\n"
+        output += "\n"
 
+    # Process New Errors
+    if audit_data.get("new_errors"):
+        output += "### ⚠️ New Errors Found\n"
+        output += "You introduced some new mistakes in this version:\n"
+        for err in audit_data["new_errors"]:
+            output += f"* *{err['q']}*: {err['r']}\n"
+            
+    return output
+
+REVISION_COACH_PROMPT = """
+### ROLE: REVISION AUDITOR
+You are a British English Examiner verifying improvements in a second draft.
+
+### INPUT DATA PROVIDED:
+1. ORIGINAL DRAFT
+2. ORIGINAL ERRORS (JSON)
+3. NEW REVISED DRAFT
+
+### TASK:
+Compare the NEW VERSION against the ORIGINAL ERRORS. Categorize every error from the original JSON into one of these statuses:
+- `fixed`: The error is completely gone and the new phrasing is natural.
+- `still_present`: The student did not change this error.
+- `incorrectly_fixed`: The student changed the text, but it is still grammatically wrong (different error).
+
+### RULES:
+- **NO ANSWERS**: If an error is `still_present` or `incorrectly_fixed`, do NOT give the correction.
+- Catch NEW errors: If the student introduced a brand new error not present in the first draft, add it to a `new_errors` list.
+
+### OUTPUT JSON STRUCTURE:
+{
+  "audit": {
+    "C1": { "category_code": [{"q": "original_quote", "status": "fixed/still_present/incorrectly_fixed", "comment": "Brief hint"}] },
+    "C2": { "category_code": [{"q": "original_quote", "status": "fixed/still_present/incorrectly_fixed", "comment": "Brief hint"}] }
+  },
+  "new_errors": [{"q": "new_quote", "r": "rule"}],
+  "VOC_CHANGE": "State if vocabulary improved, stayed same, or worsened",
+  "OVERALL": "Brief summary of the effort made in this revision."
+}
 """
 
 # 3. SESSION STATE
@@ -206,7 +263,34 @@ if 'raw_response' not in st.session_state:
     st.session_state.raw_response = ""
 
 # 4. AI CONNECTION
-def call_gemini(prompt):
+def call_gemini_initial_feedback(prompt):
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={API_KEY}"
+    headers = {'Content-Type': 'application/json'}
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.0,
+        }
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            raw_text = response.json()['candidates'][0]['content']['parts'][0]['text']
+            
+            # Remove Markdown code blocks if the AI included them
+            clean_json = re.sub(r'^```json\s*|```$', '', raw_text, flags=re.MULTILINE).strip()
+            return clean_json
+        
+        elif response.status_code == 429:
+            return "The teacher is busy (Rate limit). Try again in 10 seconds."
+            
+        return f"An unexpected error occurred: {response.status_code}"
+    
+    except Exception as e:
+        return f"Connection error: {str(e)}"
+
+# 4. AI CONNECTION
+def call_gemini_second_feedback(prompt):
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={API_KEY}"
     headers = {'Content-Type': 'application/json'}
     data = {
@@ -286,7 +370,7 @@ if not st.session_state.fb1:
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
                 full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nREQUIRED POINTS:\n{formatted_points}\n\nESSAY:\n{essay}"
                 
-                raw_response = call_gemini(full_prompt)
+                raw_response = call_gemini_initial_feedback(full_prompt)
                 st.session_state.raw_response = "" + raw_response
                 
                 # Logic to determine if we got valid JSON or an error message
@@ -335,24 +419,36 @@ if st.session_state.fb1:
         st.json(st.session_state.raw_response)
 
 # --- 3. REVISION BUTTON ---
-    if not st.session_state.fb2:
-        if st.button("🚀 Submit Final Revision", use_container_width=True):
-            with st.spinner("✨ Teacher is reviewing your changes..."):
-                rev_prompt = f"{REVISION_COACH_PROMPT}\n\nORIGINAL FEEDBACK:\n{st.session_state.fb1}\n\nNEW VERSION:\n{essay}"
-                fb2_response = call_gemini(rev_prompt)
-                
-                # FIX: Check if the response failed BEFORE saving it to state
-                if "The teacher is busy" in fb2_response or "Connection error" in fb2_response:
-                    st.error("The teacher is currently busy. Please click the button again in a few seconds.")
-                else:
-                    st.session_state.fb2 = fb2_response
+if st.session_state.fb1 and not st.session_state.fb2:
+    if st.button("🚀 Submit Final Revision", use_container_width=True):
+        with st.spinner("✨ Checking your improvements..."):
+            # We send the raw JSON and the draft
+            rev_prompt = (f"{REVISION_COACH_PROMPT}\n\n"
+                          f"ORIGINAL ERRORS (JSON):\n{st.session_state.raw_response}\n\n"
+                          f"NEW VERSION:\n{essay}")
+            
+            fb2_raw = call_gemini_second_feedback(rev_prompt)
+            
+            if fb2_raw.strip().startswith("{"):
+                try:
+                    # Clean and load
+                    clean_json = re.sub(r'^```json\s*|```$', '', fb2_raw, flags=re.MULTILINE).strip()
+                    audit_data = json.loads(clean_json)
                     
+                    # Format for student
+                    st.session_state.fb2 = format_revision_feedback(audit_data)
+                    
+                    # Log to Sheet
                     requests.post(SHEET_URL, json={
                         "type": "REVISION", "Group": group, "Students": student_list,
                         "Final Essay": essay, "FB 2": st.session_state.fb2, "Word Count": word_count
                     })
                     st.balloons()
                     st.rerun()
+                except Exception as e:
+                    st.error(f"Error parsing revision: {e}")
+            else:
+                st.error(fb2_raw)
 
 # --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
