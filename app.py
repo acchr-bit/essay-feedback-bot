@@ -398,7 +398,7 @@ if not st.session_state.fb1:
                             "type": "FIRST", 
                             "Group": group, 
                             "Students": student_list, 
-                            "Task": TASK_DESC
+                            "Task": TASK_DESC,
                             "Mark": f"{str(scores[3]).replace('.', ',')}/10", 
                             "Draft 1": essay,
                             "FB 1": st.session_state.fb1, 
