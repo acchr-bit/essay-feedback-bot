@@ -192,43 +192,44 @@ def format_revision_feedback(audit_data):
     output += f"**Vocabulary status:** {audit_data['VOC_CHANGE']}\n\n---\n"
     
     # --- CRITERION 1: Adequació ---
-    output += "###### **Adequació, coherència i cohesió**\n"
     c1_audit = audit_data["audit"].get("C1", {})
-    if not c1_audit:
-        output += "*No previous errors to check in this category.*\n"
-    else:
+    # Only show header if there is at least one subcategory with items
+    if any(instances for instances in c1_audit.values()):
+        output += "###### **Adequació, coherència i cohesió**\n"
         for code, instances in c1_audit.items():
-            label = GRADING_CONFIG["C1"]["rules"].get(code, {}).get("label", code)
-            output += f"* **{label}:**\n"
-            for inst in instances:
-                emoji_status = status_map.get(inst['status'], "❓")
-                output += f"  - {emoji_status} *{inst['q']}*\n"
-                if inst['status'] != "fixed":
-                    output += f"    - Hint: {inst['comment']}\n"
+            if instances: # Only show the subcategory (e.g., Comma Splices) if it has items
+                label = GRADING_CONFIG["C1"]["rules"].get(code, {}).get("label", code)
+                output += f"* **{label}:**\n"
+                for inst in instances:
+                    emoji_status = status_map.get(inst['status'], "❓")
+                    output += f"  - {emoji_status} *{inst['q']}*\n"
+                    if inst['status'] != "fixed":
+                        output += f"    - Hint: {inst['comment']}\n"
+        output += "\n"
     
     # --- CRITERION 2: Morfosintaxi ---
-    output += "\n###### **Morfosintaxi i ortografia**\n"
     c2_audit = audit_data["audit"].get("C2", {})
-    if not c2_audit:
-        output += "*No previous errors to check in this category.*\n"
-    else:
+    # Only show header if there is at least one subcategory with items
+    if any(instances for instances in c2_audit.values()):
+        output += "###### **Morfosintaxi i ortografia**\n"
         for code, instances in c2_audit.items():
-            label = GRADING_CONFIG["C2"]["rules"].get(code, {}).get("label", code)
-            output += f"* **{label}:**\n"
-            for inst in instances:
-                emoji_status = status_map.get(inst['status'], "❓")
-                output += f"  - {emoji_status} *{inst['q']}*\n"
-                if inst['status'] != "fixed":
-                    output += f"    - Hint: {inst['comment']}\n"
+            if instances: # Only show subcategory if it has items
+                label = GRADING_CONFIG["C2"]["rules"].get(code, {}).get("label", code)
+                output += f"* **{label}:**\n"
+                for inst in instances:
+                    emoji_status = status_map.get(inst['status'], "❓")
+                    output += f"  - {emoji_status} *{inst['q']}*\n"
+                    if inst['status'] != "fixed":
+                        output += f"    - Hint: {inst['comment']}\n"
+        output += "\n"
 
     # --- NEW ERRORS SECTION ---
-    if audit_data.get("new_errors"):
-        output += "\n---\n###### **⚠️ New Errors Introduced**\n"
+    if audit_data.get("new_errors") and len(audit_data["new_errors"]) > 0:
+        output += "---\n###### **⚠️ New Errors Introduced**\n"
         output += "Be careful! The following mistakes were not in your first draft:\n"
         for err in audit_data["new_errors"]:
             output += f"* *{err['q']}*: {err['r']}\n"
 
-    output += "\n---\n**End of Revision Audit**"
     return output
 
 REVISION_COACH_PROMPT = """
