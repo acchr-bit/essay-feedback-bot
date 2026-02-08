@@ -205,7 +205,6 @@ def call_gemini(prompt):
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.0,
-            "response_mime_type": "application/json" # This forces Gemini to output valid JSON
         }
     }
     try:
