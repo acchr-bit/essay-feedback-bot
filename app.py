@@ -159,20 +159,25 @@ if st.session_state.fb1:
             <h3>🔍 Detailed Feedback</h3>
             {st.session_state.fb1}</div>""", unsafe_allow_html=True)
 
-    # --- 3. REVISION BUTTON ---
+# --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
         if st.button("🚀 Submit Final Revision", use_container_width=True):
-            with st.spinner("✨ Checking your improvements..."):
+            with st.spinner("✨ Teacher is reviewing your changes..."):
                 rev_prompt = f"{REVISION_COACH_PROMPT}\n\nORIGINAL FEEDBACK:\n{st.session_state.fb1}\n\nNEW VERSION:\n{essay}"
-                fb2 = call_gemini(rev_prompt)
-                st.session_state.fb2 = fb2
+                fb2_response = call_gemini(rev_prompt)
                 
-                requests.post(SHEET_URL, json={
-                    "type": "REVISION", "Group": group, "Students": student_list,
-                    "Final Essay": essay, "FB 2": fb2, "Word Count": word_count
-                })
-                st.balloons()
-                st.rerun()
+                # FIX: Check if the response failed BEFORE saving it to state
+                if "The teacher is busy" in fb2_response or "Connection error" in fb2_response:
+                    st.error("The teacher is currently busy. Please click the button again in a few seconds.")
+                else:
+                    st.session_state.fb2 = fb2_response
+                    
+                    requests.post(SHEET_URL, json={
+                        "type": "REVISION", "Group": group, "Students": student_list,
+                        "Final Essay": essay, "FB 2": st.session_state.fb2, "Word Count": word_count
+                    })
+                    st.balloons()
+                    st.rerun()
 
 # --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
