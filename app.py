@@ -120,8 +120,6 @@ You must distinguish between **Global Issues** (listed once) and **Specific Occu
 }
 """
 
-import json
-
 def compute_mark(data, word_count):
     # Calculate C1
     c1_score = GRADING_CONFIG["C1"]["start_score"]
@@ -190,7 +188,7 @@ def format_revision_feedback(audit_data):
         "incorrectly_fixed": "⚠️ **Incorrectly fixed:**"
     }
     
-    output = f"**Overall Revision Summary:** {audit_data['OVERALL']}\n\n"
+    output = f"\n**Overall Revision Summary:** {audit_data['OVERALL']}\n\n"
     output += f"**Vocabulary status:** {audit_data['VOC_CHANGE']}\n\n---\n"
     
     # Process Audit
@@ -452,6 +450,6 @@ if st.session_state.fb1 and not st.session_state.fb2:
 
 # --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
-    st.markdown(f"""<div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
+    st.markdown(f"""<div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
             <h3>✅ Revision Check</h3>
             {st.session_state.fb2}</div>""", unsafe_allow_html=True)
