@@ -450,6 +450,6 @@ if st.session_state.fb1 and not st.session_state.fb2:
 
 # --- 4. FINAL FEEDBACK ---
 if st.session_state.fb2:
-    st.markdown(f"""<div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
+    st.markdown(f"""<div style="background-color: #d4edda; color: #155724; padding: 20px; border-radius: 12px; border: 1px solid #c3e6cb; margin-top: 20px;">
             <h3>✅ Revision Check</h3>
             {st.session_state.fb2}</div>""", unsafe_allow_html=True)
