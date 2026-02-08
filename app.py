@@ -323,7 +323,7 @@ if st.session_state.fb1:
             <h3>🔍 Detailed Feedback</h3>
             {st.session_state.fb1}</div><p></p>""", unsafe_allow_html=True)
 
-st.info(save_raw_response)
+    st.info(save_raw_response)
 
 # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
