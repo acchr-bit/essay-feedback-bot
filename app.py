@@ -219,7 +219,7 @@ def call_gemini(prompt):
         elif response.status_code == 429:
             return "The teacher is busy (Rate limit). Try again in 10 seconds."
             
-        return f"Error: {response.status_code} , {response.text}"
+        return f"An unexpected error occurred: {response.status_code}"
     
     except Exception as e:
         return f"Connection error: {str(e)}"
