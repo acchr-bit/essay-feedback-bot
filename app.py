@@ -105,7 +105,7 @@ You must distinguish between **Global Issues** (listed once) and **Specific Occu
     - 0.0 (Poor): Very basic or incorrect vocabulary that hinders communication.
 
 ### JSON FORMATTING:
-- Every value except `CONN`, `VOC`, and `IMP` must be a LIST of OBJECTS: `{"q": "quote", "r": "rule"}`. quote must be the specific quote of the text and rule is the explain the grammar rule behind it.
+- Every value except `CONN`, `VOC`, and `IMP` must be a LIST of OBJECTS: `{"q": "quote", "r": "rule"}`. quote must be the specific quote of the text and rule is the explain the grammar rule behind it. If it's a spelling mistake just say something like: check the spelling this word.
 - If no error is found in this category, return an empty list `[]`.
 
 ### OUTPUT STRUCTURE:
