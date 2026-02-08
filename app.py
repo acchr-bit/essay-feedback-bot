@@ -197,13 +197,17 @@ if not st.session_state.fb1:
         if not s1 or not essay:
             st.error("Please enter your name and write your composition first.")
         elif word_count <= MIN_ESSAI_WORD_COUNT:
-            fb = "Your composition is too short to be marked."
-            st.error(fb)
+            fb = """Your composition is too short to be marked.
+            
+            ###### **FINAL MARK: 0/10**"""
+
+            st.session_state.fb1 = fb
 
             requests.post(SHEET_URL, json={
                     "type": "FIRST", "Group": group, "Students": student_list, "Mark": "0/10",
                     "Draft 1": essay, "FB 1": fb, "Word Count": word_count
                 })
+            st.rerun()
         else:
             with st.spinner("Teacher is marking your composition..."):
                 formatted_points = "\n".join([f"- {p}" for p in REQUIRED_CONTENT_POINTS])
