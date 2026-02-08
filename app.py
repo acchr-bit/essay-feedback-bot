@@ -43,12 +43,7 @@ GRADING_CONFIG = {
 }
 
 # --- TASK CONFIGURATION ---
-TASK_DESC = ("This is your last year at school and you are planning your end of year trip "
-             "together with your classmates and teachers. Write an email to Liam, your "
-             "exchange partner from last year, who has just sent you an email. Tell him "
-             "about your plans for the trip: the places you are going to visit, the "
-             "activities you are going to do there, and also about your classmates, "
-             "friends and family.")
+TASK_DESC = "This is your last year at school and you are planning your end of year trip together with your classmates and teachers. Write an email to Liam, your exchange partner from last year, who has just sent you an email. Tell him about your plans for the trip: the places you are going to visit, the activities you are going to do there, and also about your classmates, friends and family."
 
 REQUIRED_CONTENT_POINTS = [
     "Plans for the trip",
@@ -403,10 +398,11 @@ if not st.session_state.fb1:
                             "type": "FIRST", 
                             "Group": group, 
                             "Students": student_list, 
+                            "Task": TASK_DESC
                             "Mark": f"{str(scores[3]).replace('.', ',')}/10", 
                             "Draft 1": essay,
                             "FB 1": st.session_state.fb1, 
-                            "Word Count": word_count
+                            "Word Count": word_count,
                         })
                         st.rerun()
                         
