@@ -7,6 +7,8 @@ import json
 # 1. SETUP
 API_KEY = st.secrets["GEMINI_API_KEY"]
 SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
+DEBUG = True
+
 
 # GRADING CONFIGURATION
 MIN_ESSAI_WORD_COUNT = 65
@@ -332,8 +334,9 @@ if st.session_state.fb1:
     st.markdown(f"""<div style="background-color: #e7f3ff; color: #1a4a7a; padding: 20px; border-radius: 12px; border: 1px solid #b3d7ff;">
             <h3>🔍 Detailed Feedback</h3>
             {st.session_state.fb1}</div><p></p>""", unsafe_allow_html=True)
-
-    st.json(st.session_state.raw_response)
+    
+    if DEBUG: 
+        st.json(st.session_state.raw_response)
 
 # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
