@@ -196,6 +196,8 @@ if 'fb1' not in st.session_state:
     st.session_state.fb1 = ""
 if 'fb2' not in st.session_state:
     st.session_state.fb2 = ""
+if 'raw_response' not in st.session_state:
+    st.session_state.raw_response = ""
 
 # 4. AI CONNECTION
 def call_gemini(prompt):
@@ -279,7 +281,7 @@ if not st.session_state.fb1:
                 full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nREQUIRED POINTS:\n{formatted_points}\n\nESSAY:\n{essay}"
                 
                 raw_response = call_gemini(full_prompt)
-                save_raw_response = "" + raw_response
+                st.session_state.raw_response = "" + raw_response
                 
                 # Logic to determine if we got valid JSON or an error message
                 if raw_response.strip().startswith("{"):
@@ -323,7 +325,7 @@ if st.session_state.fb1:
             <h3>🔍 Detailed Feedback</h3>
             {st.session_state.fb1}</div><p></p>""", unsafe_allow_html=True)
 
-    st.info(save_raw_response)
+    st.info(st.session_state.raw_response)
 
 # --- 3. REVISION BUTTON ---
     if not st.session_state.fb2:
