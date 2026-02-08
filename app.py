@@ -197,9 +197,7 @@ if not st.session_state.fb1:
         if not s1 or not essay:
             st.error("Please enter your name and write your composition first.")
         elif word_count <= MIN_ESSAI_WORD_COUNT:
-            fb = """Your composition is too short to be marked.
-            
-            ###### **FINAL MARK: 0/10**"""
+            fb = """Your composition is too short to be marked. FINAL MARK: 0/10"""
 
             st.session_state.fb1 = fb
 
