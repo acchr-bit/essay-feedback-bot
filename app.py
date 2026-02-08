@@ -279,6 +279,7 @@ if not st.session_state.fb1:
                 full_prompt = f"{RUBRIC_INSTRUCTIONS}\n\nREQUIRED POINTS:\n{formatted_points}\n\nESSAY:\n{essay}"
                 
                 raw_response = call_gemini(full_prompt)
+                st.info(raw_response)
                 
                 # Logic to determine if we got valid JSON or an error message
                 if raw_response.strip().startswith("{"):
